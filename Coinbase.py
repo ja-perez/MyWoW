@@ -4,14 +4,16 @@ from portfolio import Granularity
 import utils
 import datetime
 
-# Load environment variables
-config = dotenv_values(".env")
-coinbaseAPIKey = config["COINBASE_API_KEY"]
-coinbaseAPISecret = config["COINBASE_API_SECRET"]
+def get_client(dotenv_path: str = ".env"):
+    # Load environment variables
+    config = dotenv_values(".env")
+    coinbaseAPIKey = config["COINBASE_API_KEY"]
+    coinbaseAPISecret = config["COINBASE_API_SECRET"]
 
-client = RESTClient(api_key=coinbaseAPIKey, api_secret=coinbaseAPISecret)
+    client = RESTClient(api_key=coinbaseAPIKey, api_secret=coinbaseAPISecret)
+    return client
 
-def get_default_portfolio():
+def get_default_portfolio(client: RESTClient):
     portfolios_response = client.get_portfolios()
     portfolios = portfolios_response.to_dict()["portfolios"]
 
@@ -25,7 +27,7 @@ def get_default_portfolio():
             default_portfolio = portfolio_bd
     return default_portfolio
  
-def get_asset_candles(product_id: str, granularity: str, start: datetime.datetime, end: datetime.datetime, limit= int | None):
+def get_asset_candles(client: RESTClient, product_id: str, granularity: str, start: datetime.datetime, end: datetime.datetime, limit: int = None):
     start_unix = str(int(start.timestamp()))
     end_unix = str(int(end.timestamp()))
     if (not Granularity.verify(granularity)):
@@ -37,13 +39,18 @@ def get_asset_candles(product_id: str, granularity: str, start: datetime.datetim
     return candles
 
 def main():
-    candles = utils.get_data_from_file(utils.get_path_from_log_dir("candles.json"))["candles"]
+    client = get_client()
 
-    for candle in candles:
-        date: str = utils.unix_to_date_string(int(candle["start"]))
-        high: str = candle["high"]
-        weekday: str = utils.get_weekday(datetime.datetime.fromtimestamp(int(candle["start"])))
-        print(f"{date} {weekday}: {high}")
+    try:
+        candles = utils.get_data_from_file(utils.get_path_from_log_dir("candles.json"))["candles"]
+
+        for candle in candles:
+            date: str = utils.unix_to_date_string(int(candle["start"]))
+            high: str = candle["high"]
+            weekday: str = utils.get_weekday(datetime.datetime.fromtimestamp(int(candle["start"])))
+            print(f"{date} {weekday}: {high}")
+    except Exception as _:
+        print("Failed to read data from file: " + utils.get_path_from_log_dir("candles.json"))
 
 if __name__=="__main__":
     main()
