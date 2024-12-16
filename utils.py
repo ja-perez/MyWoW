@@ -12,7 +12,6 @@ def get_path_from_log_dir(*args):
     return path.join(getcwd(), "logs", *args)
 
 def write_data_to_file(file_path: str, data: dict) -> None:
-    file_path = path.join(getcwd(), file_path)
     print("Writing data to file path: " + file_path)
     try:
         with open(file_path, "w") as f:
@@ -24,7 +23,6 @@ def write_data_to_file(file_path: str, data: dict) -> None:
     print("Successfully wrote data to file: " + file_path)
 
 def append_data_to_file(file_path: str, data: dict) -> None:
-    file_path = path.join(getcwd(), file_path)
     print("Adding data to file path: " + file_path)
     try:
         existing_data = {}
@@ -41,7 +39,6 @@ def append_data_to_file(file_path: str, data: dict) -> None:
     print("Successfully added data to file: " + file_path)
 
 def get_data_from_file(file_path: str) -> dict:
-    file_path = path.join(getcwd(), file_path)
     print("Reading data from file path: " + file_path)
     try:
         with open(file_path, "r") as f:
