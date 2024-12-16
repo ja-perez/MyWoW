@@ -11,6 +11,9 @@ def get_path_from_cwd(*args):
 def get_path_from_log_dir(*args):
     return path.join(getcwd(), "logs", *args)
 
+def get_path_from_data_dir(*args):
+    return path.join(getcwd(), "data", *args)
+
 def write_data_to_file(file_path: str, data: dict) -> None:
     print("Writing data to file path: " + file_path)
     try:
@@ -47,6 +50,19 @@ def get_data_from_file(file_path: str) -> dict:
         print("Failed to read data from file: " + file_path)
         print("Error:\n", e)
         return
+
+def get_csv_data_from_file(file_path: str) -> list:
+    print("Reading data from file path: " + file_path)
+    try:
+        data = []
+        with open(file_path, "r") as f:
+            for line in f:
+                data.append(line.strip().split(","))
+        return data
+    except Exception as e:
+        print("Failed to read data from file: " + file_path)
+        print("Error:\n", e)
+        return []
 
 def unix_to_date_string(timestamp: int) -> str:
     return datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d')
