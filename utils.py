@@ -19,11 +19,10 @@ def write_data_to_file(file_path: str, data: dict) -> None:
     try:
         with open(file_path, "w") as f:
             json.dump(data, f, indent=4)
+        print("Successfully wrote data to file: " + file_path)
     except Exception as e:
         print("Failed to write data to file: " + file_path)
         print("Error:\n", e)
-        return
-    print("Successfully wrote data to file: " + file_path)
 
 def append_data_to_file(file_path: str, data: dict) -> None:
     print("Adding data to file path: " + file_path)
@@ -35,11 +34,54 @@ def append_data_to_file(file_path: str, data: dict) -> None:
                 existing_data.update(data)
         with open(file_path, "w") as f:
             json.dump(existing_data, f, indent=4)
+        print("Successfully added data to file: " + file_path)
     except Exception as e:
         print("Failed to add data to file: " + file_path)
         print("Error:\n", e)
-        return
-    print("Successfully added data to file: " + file_path)
+
+def clear_file(file_path: str) -> None:
+    print("Clearing file path: " + file_path)
+    try:
+        with open(file_path, "w") as f:
+            f.write("")
+        print("Successfully cleared file: " + file_path)
+    except Exception as e:
+        print("Failed to clear file: " + file_path)
+        print("Error:\n", e)
+
+def add_data_to_csv_file(file_path: str, data: list) -> None:
+    print("Adding data to file path: " + file_path)
+    try:
+        with open(file_path, "a") as f:
+            line = ",".join(data)
+            f.write(line + "\n")
+        print("Successfully added data to file: " + file_path)
+    except Exception as e:
+        print("Failed to add data to file: " + file_path)
+        print("Error:\n", e)
+
+def write_many_data_to_csv_file(file_path: str, data: list[dict]) -> None:
+    print("Writing data to file path: " + file_path)
+    try:
+        clear_file(file_path)
+        for line in data:
+            add_data_to_csv_file(file_path, line)
+        print("Successfully wrote data to file: " + file_path)
+    except Exception as e:
+        print("Failed to write data to file: " + file_path)
+        print("Error:\n", e)
+
+def add_data_to_csv_file(file_path: str, data: dict) -> None:
+    print("Adding data to file path: " + file_path)
+    try:
+        data_vals = [str(val) for val in data.values()]
+        with open(file_path, "a") as f:
+            line = ",".join(data_vals)
+            f.write(line + "\n")
+        print("Successfully added data to file: " + file_path)
+    except Exception as e:
+        print("Failed to add data to file: " + file_path)
+        print("Error:\n", e)
 
 def get_data_from_file(file_path: str) -> dict:
     print("Reading data from file path: " + file_path)
@@ -49,7 +91,6 @@ def get_data_from_file(file_path: str) -> dict:
     except Exception as e:
         print("Failed to read data from file: " + file_path)
         print("Error:\n", e)
-        return
 
 def get_csv_data_from_file(file_path: str) -> list:
     print("Reading data from file path: " + file_path)
