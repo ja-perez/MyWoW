@@ -1,0 +1,14 @@
+BTC,BTC-USD,2024-12-01,2024-12-10,97500,99000,96500,98500
+
+/*
+ * Data header: symbol tradingPair startDate endDate startPrice endPrice buyPrice sellPrice
+ *
+ * This records a prediction made on December 1st 2024 for the price of Bitcoin, whose price
+ * at that point in time was around $97,500. It predicts that by December 10th 2024, the price
+ * will reach $99,000. Additionally, it includes a buy price of $96,500 and sell price of $98,500.
+ * These are meant to represent planned or potential limit orders to be placed that take advantage 
+ * of the predicted price change.
+ *
+ * This data is simply meant to record impressions of the crypto market with the goal of eventually
+ * checking if those predictions were accurate or could have resulted in profit.
+ */
