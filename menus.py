@@ -1,6 +1,8 @@
 import curses
 import utils
 import datetime
+import Coinbase as cb
+import portfolio
 
 def displayOptions(stdscr: curses.window, options: dict[int, str]) -> int:
     y, _ = stdscr.getyx()
@@ -19,9 +21,9 @@ def displayOptions(stdscr: curses.window, options: dict[int, str]) -> int:
 
         # update choice
         if key == curses.KEY_UP or key == ord('w'):
-            choice = abs(choice - 1) % len(options)
+            choice = len(options) - 1 if choice - 1 < 0 else choice - 1
         if key == curses.KEY_DOWN or key == ord('s'):
-            choice = abs(choice + 1) % len(options)
+            choice = (choice + 1) % len(options)
         if key == ord('q'):
             return -1
 
@@ -49,9 +51,10 @@ def mainmenu(stdscr) -> int:
     stdscr.addstr(0, 0, "Main Menu")
 
     options = {
-        1: "List Predictions",
-        2: "Add new Prediction",
-        3: "Edit Prediction",
+        1: "List predictions",
+        2: "List prediction results",
+        3: "Add new prediction",
+        4: "Edit prediction",
         -1: "Exit Program",
     }
     return displayOptions(stdscr, options)
@@ -71,6 +74,66 @@ def getpredictiondata() -> dict:
             "sell_price": float(row[7])
         })
     return data
+
+def getpredictionresults() -> dict:
+    fileData = utils.get_csv_data_from_file(utils.get_path_from_data_dir("dummy_results.csv"))
+    data = []
+    for row in fileData:
+        data.append({
+            "symbol": row[0],
+            "trading-pair": row[1],
+            "start_date": row[2],
+            "end_date": row[3],
+            "start_price": float(row[4]),
+            "end_price": float(row[5]),
+            "buy_price": float(row[6]),
+            "sell_price": float(row[7]),
+            "actual_end_price": float(row[8]),
+        })
+    return data
+
+def updatepredictions():
+    data = getpredictiondata()
+    today = datetime.datetime.now()
+
+    new_data = []
+    for pred in data:
+        end_date = datetime.datetime.strptime(pred["end_date"], "%Y-%m-%d")
+        start_date = datetime.datetime.strptime(pred["start_date"], "%Y-%m-%d")
+        if today > end_date:
+            trading_pair = pred["trading-pair"]
+            candle = cb.get_asset_candles(cb.get_client(), trading_pair, portfolio.Granularity.ONE_DAY, start_date, end_date) 
+            pred_result = pred.copy()
+            pred_result["actual_end_price"] = float(candle[0]["close"])
+            utils.add_data_to_csv_file(utils.get_path_from_data_dir("dummy_results.csv"), pred_result)
+        else:
+            new_data.append(pred)
+    utils.write_many_data_to_csv_file(utils.get_path_from_data_dir("dummy_data.csv"), new_data)
+
+def listresults(stdscr):
+    stdscr.clear()
+    stdscr.addstr(0, 0, "Prediction Results")
+
+    updatepredictions()
+
+    data = getpredictionresults()
+
+    header = f"{'Symbol':<10} {'Start Date':<15} {'Start Price':<15} {'End Price':<15} {'End Date':<15} {'Actual End Price':<15}"
+    while True:
+        stdscr.addstr(1, 0, header)
+        for index, pred in enumerate(data):
+            formattedPred = f"{pred['symbol']:<10} {pred['start_date']:<15} {pred['start_price']:<15.8f} {pred['end_price']:<15.8f} {pred['end_date']:<15} {pred['actual_end_price']:<15.8f}"
+            stdscr.addstr(2 + index, 0, formattedPred)
+
+        options = {
+            0: "Back to Main Menu",
+            -1: "Exit Program",
+        }
+        stdscr.move(2 + len(data), 0)
+        choice = displayOptions(stdscr, options)
+
+        if choice == 0 or choice == -1:
+            return choice
 
 def listpredictions(stdscr):
     stdscr.clear()
@@ -296,8 +359,10 @@ def main(stdscr):
             case 1:
                 state = listpredictions(stdscr)
             case 2:
-                state = addprediction(stdscr)
+                state = listresults(stdscr)
             case 3:
+                state = addprediction(stdscr)
+            case 4:
                 state = editprediction(stdscr)
             case -1:
                 break
