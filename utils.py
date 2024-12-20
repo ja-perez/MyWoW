@@ -2,6 +2,20 @@ import json
 import datetime
 from os import path, getcwd, listdir
 
+DEBUG = True
+
+def file_write_debug(func):
+    def wrapper(*args, **kwargs):
+        if DEBUG:
+            print("Writing data to file: " + args[0])
+        writeSuccessful = func(*args, **kwargs)
+        if DEBUG:
+            if writeSuccessful:
+                print("Successfully wrote data to file: " + args[0])
+            else:
+                print("Failed to write data to file: " + args[0])
+    return wrapper
+
 def get_files_by_extension(folder_path, extension):
     return [path.join(folder_path, file) for file in listdir(folder_path) if file.endswith(extension)]
 
