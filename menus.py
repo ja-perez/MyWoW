@@ -3,6 +3,7 @@ import utils
 import datetime
 import Coinbase as cb
 import portfolio
+import os
 
 def displayOptions(stdscr: curses.window, options: dict[int, str]) -> int:
     y, _ = stdscr.getyx()
@@ -55,6 +56,7 @@ def mainmenu(stdscr) -> int:
         2: "List prediction results",
         3: "Add new prediction",
         4: "Edit prediction",
+        5: "Prediction analysis",
         -1: "Exit Program",
     }
     return displayOptions(stdscr, options)
@@ -345,13 +347,79 @@ def editprediction(stdscr):
 
     return 0
 
+def displaypricechart(stdscr):
+    y_start, x_start = stdscr.getyx()
+
+    stdscr.move(20, 30)
+
+    y_end, x_end = stdscr.getyx()
+    y_mid = y_start + ((y_end - y_start) // 2)
+    x_mid = x_start + ((x_end - x_start) // 2)
+    stdscr.addstr(y_mid, x_mid, "GRAPH HERE")
+
+    stdscr.move(y_end, x_end)
+
+def predictionoverview(stdscr):
+    # TODO: Refactor this to be more modular
+    # TODO: Refactor this and add an option specifying which prediction to analyze
+    # TODO: Refactor this and add a "carousel" for viewing multiple predictions by clicking [P]revious and [N]ext
+    stdscr.clear()
+    stdscr.addstr(0, 0, "Prediction Analysis")
+
+    predictionResult = getpredictionresults()[0]
+
+    trading_pair = predictionResult["trading-pair"]
+    start_date = predictionResult["start_date"]
+    end_date = predictionResult["end_date"]
+    start_price = predictionResult["start_price"]
+    end_price = predictionResult["end_price"]
+    buy_price = predictionResult["buy_price"]
+    sell_price = predictionResult["sell_price"]
+    actual_end_price = predictionResult["actual_end_price"]
+
+    output_filename = f"{start_date.replace("-", "")}_{end_date.replace("-", "")}_{trading_pair}_candles.json"
+    output_file_path = utils.get_path_from_data_dir(output_filename)
+    if os.path.exists(output_file_path):
+        candles = utils.get_data_from_file(output_file_path)
+    else:
+        start_datetime = datetime.datetime.strptime(start_date, "%Y-%m-%d")
+        end_datetime = datetime.datetime.strptime(end_date, "%Y-%m-%d")
+        candles = cb.get_asset_candles(cb.get_client(), trading_pair, portfolio.Granularity.ONE_DAY, start_datetime, end_datetime)
+        utils.write_data_to_file(output_file_path, candles)
+
+    high = -1.0
+    low = 99999999999999999.9
+    for candle in candles:
+        high = max(high, float(candle["high"]))
+        low = min(low, float(candle["low"]))
+
+    stdscr.addstr(1, 0, f"{"Symbol":<15} {"Start Date":<15} {"Closing Date":<15} {"Closing Price":<15} {"High":<15} {"Low":<15}")
+    stdscr.addstr(2, 0, f"{trading_pair:<15} {start_date:<15} {end_date:<15} {actual_end_price:<15.8f} {high:<15.8f} {low:<15.8f}")
+
+    stdscr.move(3, 0)
+    displaypricechart(stdscr)
+    graph_y_end, _ = stdscr.getyx()
+
+    stdscr.addstr(graph_y_end + 1, 0, f"{"START PRICE":<15} {"PRED. END PRICE":<20} {"BUY PRICE":<15} {"SELL PRICE":<15}")
+    stdscr.addstr(graph_y_end + 2, 0, f"{start_price:<15.8f} {end_price:<20.8f} {buy_price:<15.8f} {sell_price:<15.8f}")
+
+    options = {
+        0: "Back to Main Menu",
+        -1: "Exit Program",
+    }
+    while True:
+        stdscr.move(graph_y_end + 3, 0)
+        choice = displayOptions(stdscr, options)
+
+        if choice == 0 or choice == -1:
+            return choice
 
 def main(stdscr):
     stdscr = curses.initscr()
     curses.curs_set(0)
     stdscr.clear()
 
-    state = 0
+    state = 5
     while True:
         match state:
             case 0:
@@ -364,6 +432,8 @@ def main(stdscr):
                 state = addprediction(stdscr)
             case 4:
                 state = editprediction(stdscr)
+            case 5:
+                state = predictionoverview(stdscr)
             case -1:
                 break
             case _:
