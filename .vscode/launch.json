@@ -10,6 +10,13 @@
             "request": "launch",
             "program": "${file}",
             "console": "externalTerminal"
+        },
+        {
+            "name": "Python Debugger: MyWoW main.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${cwd}/main.py",
+            "console": "externalTerminal"
         }
     ]
 }
