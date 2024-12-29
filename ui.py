@@ -11,47 +11,46 @@ class Menu:
         self.action = action
         self.input_handler = input_handler
 
-    def display_options(self, custom_options: dict = None) -> int:
+        if not stdscr:
+            raise Exception("stdscr cannot be None")
+
+    def display_options(self) -> int:
         y, _ = self.stdscr.getyx()
         y += 2 # 1 newline
 
         self.stdscr.addstr(y - 1, 0, self.title)
 
-        if custom_options:
-            options = custom_options
-        else:
-            options = self.options
         choice = 0
         while True:
             self.stdscr.move(y, 0)
             self.stdscr.clrtobot()
 
-            for i, key in enumerate(options):
-                option_output = f"{'>' if i == choice else ' '} {options[key]}"
+            for i, key in enumerate(self.options):
+                option_output = f"{'>' if i == choice else ' '} {self.options[key]}"
                 self.stdscr.addstr(y + i, 0, option_output)
 
             user_input = self.stdscr.getch()
             user_input_char = chr(user_input).lower()
 
             if user_input == curses.KEY_UP or user_input_char == 'w':
-                choice = len(options) - 1 if choice - 1 < 0 else choice - 1
-            elif user_input == curses.KEY_DOWN or user_input_char == 's':
-                choice = (choice + 1) % len(options)
-
+                choice = len(self.options) - 1 if choice - 1 < 0 else choice - 1
+            if user_input == curses.KEY_DOWN or user_input_char == 's':
+                choice = (choice + 1) % len(self.options)
             if user_input_char == 'q':
                 return "quit"
-            elif user_input == curses.KEY_ENTER or user_input_char == '\n' or user_input == 10:
+
+            if user_input == curses.KEY_ENTER or user_input == 10 or user_input_char == '\n' \
+            or user_input_char == 'q':
                 break
 
-        keys = [key for key in options.keys()]
-
-        if self.action and not custom_options:
-            self.action(keys[choice])
-
+        keys = [key for key in self.options]
         return keys[choice]
 
-    def display_interactive_menu(self):
-        self.action()
+    def display_interactive_menu(self, choice: str=None):
+        if choice:
+            self.action(choice)
+        else:
+            self.action()
 
     def listresults(self, data: list[dict]):
         self.stdscr.clear()
@@ -64,15 +63,18 @@ class Menu:
                 formattedPred = f"{pred['symbol']:<10} {pred['start_date']:<15} {pred['start_price']:<15.8f} {pred['end_price']:<15.8f} {pred['end_date']:<15} {pred['actual_end_price']:<15.8f}"
                 self.stdscr.addstr(2 + index, 0, formattedPred)
 
-            options = {
+            self.options = {
                 "main": "Back to Main Menu",
                 "quit": "Exit Program",
             }
             self.stdscr.move(2 + len(data), 0)
-            choice = self.display_options(options)
+            choice = self.display_options()
 
             if choice == "main" or choice == "quit":
-                return choice
+                break
+
+        self.options = None
+        return choice
 
     def listpredictions(self, data: list[dict]):
         self.stdscr.clear()
@@ -93,7 +95,10 @@ class Menu:
             choice = self.display_options()
 
             if choice == "main" or choice == "quit":
-                return choice
+                break
+
+        self.options = None
+        return choice
 
     def addprediction(self):
         self.stdscr.clear()
@@ -103,7 +108,7 @@ class Menu:
             self.stdscr.move(1, 0)
             self.stdscr.clrtobot()
 
-            trading_pair = self.input_handler.get_input(self.stdscr, "Trading Pair", str, example="BTC-USD, ETH-USD")
+            trading_pair = self.input_handler.get_input("Trading Pair", str, example="BTC-USD, ETH-USD")
 
             if trading_pair == None: # n for new (start process all over)
                 continue
@@ -113,7 +118,7 @@ class Menu:
             asset = trading_pair.split("-")[0]
 
             self.stdscr.move(2, 0)
-            start_date = self.input_handler.get_input(self.stdscr, "Start Date", datetime.datetime, format="YYYY-MM-DD", example="2022-01-01", default=datetime.datetime.now().strftime("%Y-%m-%d"))
+            start_date = self.input_handler.get_input("Start Date", datetime.datetime, format="YYYY-MM-DD", example="2022-01-01", default=datetime.datetime.now().strftime("%Y-%m-%d"))
             if start_date == None:
                 continue
             if start_date == "quit":
@@ -121,35 +126,35 @@ class Menu:
 
             # TODO: Have default value be amount returned by api call for product candle
             self.stdscr.move(3, 0)
-            end_date =self.input_handler.get_input(self.stdscr, "End Date", datetime.datetime, format="YYYY-MM-DD", example="2022-01-01")
+            end_date =self.input_handler.get_input("End Date", datetime.datetime, format="YYYY-MM-DD", example="2022-01-01")
             if end_date == None:
                 continue
             if end_date == "quit":
                 return "quit"
 
             self.stdscr.move(4, 0)
-            start_price =self.input_handler.get_input(self.stdscr, "Start Price", float, example="100.00, 0.01")
+            start_price =self.input_handler.get_input("Start Price", float, example="100.00, 0.01")
             if start_price == None:
                 continue
             if start_price == "quit":
                 return "quit"
 
             self.stdscr.move(5, 0)
-            end_price =self.input_handler.get_input(self.stdscr, f"End Price on {end_date}", float, example="100.00, 0.01")
+            end_price =self.input_handler.get_input(f"End Price on {end_date}", float, example="100.00, 0.01")
             if end_price == None:
                 continue
             if end_price == "quit":
                 return "quit"
 
             self.stdscr.move(6, 0)
-            buy_price = self.input_handler.get_input(self.stdscr, "Buy Price", float, example="10000.00, 0.01")
+            buy_price = self.input_handler.get_input("Buy Price", float, example="10000.00, 0.01")
             if buy_price == None:
                 continue
             if buy_price == "quit":
                 return "quit"
 
             self.stdscr.move(7, 0)
-            sell_price = self.input_handler.get_input(self.stdscr, "Sell Price", float, example="10000.00, 0.01")
+            sell_price = self.input_handler.get_input("Sell Price", float, example="10000.00, 0.01")
             if sell_price == None:
                 continue
             if sell_price == "quit":
@@ -164,7 +169,7 @@ class Menu:
             """
             self.stdscr.addstr(summary)
             self.stdscr.move(13, 0)
-            if (self.input_handler.get_input(self.stdscr, "Confirm?", str, default="n").lower() == "y"):
+            if (self.input_handler.get_input("Confirm?", str, default="n").lower() == "y"):
                 break
             else:
                 return None
@@ -188,7 +193,7 @@ class Menu:
         while True:
             self.stdscr.move(1, 0)
             self.stdscr.clrtoeol()
-            val = self.input_handler.get_input(self.stdscr, "Symbol", str, example="BTC, ETH")
+            val = self.input_handler.get_input(prompt="Symbol", input_type=str, example="BTC, ETH")
             if val == None or val == "quit":
                 return val
             val = val.upper()
@@ -210,7 +215,7 @@ class Menu:
         while True:
             self.stdscr.move(2, 0)
             self.stdscr.clrtoeol()
-            val = self.input_handler.get_input(self.stdscr, "Start Date, in YYYY-MM-DD", str, example="2022-01-01")
+            val = self.input_handler.get_input("Start Date, in YYYY-MM-DD", str, example="2022-01-01")
             if val == None or val == "quit":
                 return val
             found = False
@@ -242,7 +247,7 @@ class Menu:
 
         self.stdscr.move(y_end, x_end)
 
-    def predictionoverview(self, predictionResult: dict, prediction_service):
+    def predictionoverview(self, predictionResult: dict, candles: dict):
         # TODO: Refactor this to be more modular
         # TODO: Refactor this and add an option specifying which prediction to analyze
         # TODO: Refactor this and add a "carousel" for viewing multiple predictions by clicking [P]revious and [N]ext
@@ -257,8 +262,6 @@ class Menu:
         buy_price = predictionResult["buy_price"]
         sell_price = predictionResult["sell_price"]
         actual_end_price = predictionResult["actual_end_price"]
-
-        candles = prediction_service.get_candles(trading_pair, datetime.datetime.strptime(start_date, "%Y-%m-%d"), datetime.datetime.strptime(end_date, "%Y-%m-%d"))
 
         high = -1.0
         low = 99999999999999999.9
@@ -276,13 +279,16 @@ class Menu:
         self.stdscr.addstr(graph_y_end + 1, 0, f"{"START PRICE":<15} {"PRED. END PRICE":<20} {"BUY PRICE":<15} {"SELL PRICE":<15}")
         self.stdscr.addstr(graph_y_end + 2, 0, f"{start_price:<15.8f} {end_price:<20.8f} {buy_price:<15.8f} {sell_price:<15.8f}")
 
-        options = {
+        self.options = {
             "main": "Back to Main Menu",
             "quit": "Exit Program",
         }
         while True:
             self.stdscr.move(graph_y_end + 3, 0)
-            choice = self.display_options(options)
+            choice = self.display_options()
 
             if choice == "main" or choice == "quit":
-                return choice
+                break
+        
+        self.options = None
+        return choice
