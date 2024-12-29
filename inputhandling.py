@@ -64,7 +64,7 @@ class InputHandler:
                 elif input_type == float:
                     user_input = float(user_input)
                 elif input_type == datetime.datetime:
-                    user_input = datetime.datetime.strptime(user_input, "%Y-%m-%d")
+                    user_input = datetime.datetime.strptime(user_input, "%Y-%m-%d").strftime("%Y-%m-%d")
 
                 if validation:
                     validation(user_input)
