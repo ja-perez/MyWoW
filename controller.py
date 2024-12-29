@@ -38,9 +38,9 @@ class Controller:
 
         self.menus["results"] = Menu("Prediction Results", stdscr=self.stdscr, action=self.handle_results_action)
 
-        self.menus["add_pred"] = Menu("Add Prediction", stdscr=self.stdscr, action=self.handle_add_pred_action)
+        self.menus["add_pred"] = Menu("Add Prediction", stdscr=self.stdscr, action=self.handle_add_pred_action, input_handler=self.input_handler)
 
-        self.menus["edit_pred"] = Menu("Edit Prediction", stdscr=self.stdscr, action=self.handle_edit_pred_action)
+        self.menus["edit_pred"] = Menu("Edit Prediction", stdscr=self.stdscr, action=self.handle_edit_pred_action, input_handler=self.input_handler)
 
         self.menus["pred_overview"] = Menu("Prediction Overview", stdscr=self.stdscr, action=self.handle_pred_overview_action)
 
@@ -50,7 +50,8 @@ class Controller:
         while self.active_menu != None:
             self.stdscr.erase()
             if self.active_menu.options:
-                self.active_menu.display_options()
+                choice = self.active_menu.display_options()
+                self.active_menu.display_interactive_menu(choice)
             else:
                 self.active_menu.display_interactive_menu()
 
@@ -99,7 +100,6 @@ class Controller:
         else:
             self.active_menu = self.menus["main"]
 
-
     def handle_edit_pred_action(self):
         data = self.prediction_service.get_predictions()
         res = self.active_menu.editprediction(data)
@@ -117,8 +117,9 @@ class Controller:
         data = self.prediction_service.get_results()
 
         if data:
-            prediction_result = data[0]
-            res = self.active_menu.predictionoverview(prediction_result, self.prediction_service)
+            results = data[0]
+            candles = self.prediction_service.get_candles(results)
+            res = self.active_menu.predictionoverview(results, candles)
 
             if res == "quit":
                 self.active_menu = None
