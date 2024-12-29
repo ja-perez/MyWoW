@@ -56,7 +56,7 @@ def mainmenu(stdscr) -> int:
         2: "List prediction results",
         3: "Add new prediction",
         4: "Edit prediction",
-        5: "Prediction analysis",
+        5: "Prediction overview",
         -1: "Exit Program",
     }
     return displayOptions(stdscr, options)
@@ -182,7 +182,7 @@ def getInput(stdscr, prompt: str, example: str = "", default: str = "") -> str:
 # TODO: Refactor this digustingly long, repetitive, ugly dumb looking function
 def addprediction(stdscr):
     stdscr.clear()
-    stdscr.addstr(0, 0, "New Prediction (c to cancel, q to quit)")
+    stdscr.addstr(0, 0, "New Prediction (c to cancel, q to quit, n for new form)")
 
     while True:
         stdscr.move(1, 0)
@@ -419,7 +419,7 @@ def main(stdscr):
     curses.curs_set(0)
     stdscr.clear()
 
-    state = 5
+    state = 0
     while True:
         match state:
             case 0:
