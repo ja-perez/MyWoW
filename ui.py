@@ -10,6 +10,7 @@ class Menu:
         self.stdscr = stdscr
         self.action = action
         self.input_handler = input_handler
+        self.has_options = True if options else False
 
         if not stdscr:
             raise Exception("stdscr cannot be None")
@@ -46,11 +47,8 @@ class Menu:
         keys = [key for key in self.options]
         return keys[choice]
 
-    def display_interactive_menu(self, choice: str=None):
-        if choice:
-            self.action(choice)
-        else:
-            self.action()
+    def display_interactive_menu(self):
+        self.action()
 
     def listresults(self, data: list[dict]):
         self.stdscr.clear()
@@ -73,7 +71,6 @@ class Menu:
             if choice == "main" or choice == "quit":
                 break
 
-        self.options = None
         return choice
 
     def listpredictions(self, data: list[dict]):
@@ -97,7 +94,6 @@ class Menu:
             if choice == "main" or choice == "quit":
                 break
 
-        self.options = None
         return choice
 
     def addprediction(self):
@@ -247,7 +243,7 @@ class Menu:
 
         self.stdscr.move(y_end, x_end)
 
-    def predictionoverview(self, predictionResult: dict, candles: dict):
+    def predictionoverview(self, predictionResult: dict, candles: list[dict]):
         # TODO: Refactor this to be more modular
         # TODO: Refactor this and add an option specifying which prediction to analyze
         # TODO: Refactor this and add a "carousel" for viewing multiple predictions by clicking [P]revious and [N]ext
@@ -290,5 +286,4 @@ class Menu:
             if choice == "main" or choice == "quit":
                 break
         
-        self.options = None
         return choice
