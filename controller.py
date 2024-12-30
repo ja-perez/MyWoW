@@ -49,9 +49,9 @@ class Controller:
     def run(self):
         while self.active_menu != None:
             self.stdscr.erase()
-            if self.active_menu.options:
+            if self.active_menu.has_options:
                 choice = self.active_menu.display_options()
-                self.active_menu.display_interactive_menu(choice)
+                self.active_menu.action(choice)
             else:
                 self.active_menu.display_interactive_menu()
 
