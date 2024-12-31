@@ -1,6 +1,18 @@
 import curses
 import datetime
 
+class InvalidInputError(Exception):
+    """Raised when input is invalid"""
+    pass
+
+class CancelInputError(Exception):
+    """Raised when input is cancelled"""
+    pass
+
+class QuitInputError(Exception):
+    """Raised when user quits the input process."""
+    pass
+
 class InputHandler:
     def __init__(self, stdscr: curses.window):
         self.stdscr = stdscr
@@ -49,15 +61,13 @@ class InputHandler:
                     return_val = default
                     break
                 if not user_input:
-                    raise AssertionError("Required value, cannot be empty")
+                    raise InvalidInputError("Required value, cannot be empty")
                 # Cancel current action
                 if user_input == 'c':
-                    return_val = None
-                    break
+                    raise CancelInputError()
                 # Quit program
                 if user_input == 'q':
-                    return_val = "quit"
-                    break
+                    raise QuitInputError()
 
                 if input_type == int:
                     user_input = int(user_input)
@@ -74,13 +84,24 @@ class InputHandler:
 
             except ValueError as e:
                 self.stdscr.addstr(f"  Invalid Input: {e}\n")
+                err_flag = True
+            except InvalidInputError as e:
+                self.stdscr.addstr(f"  Invalid Input: {e}\n")
+                err_flag = True
             except AssertionError as e:
                 self.stdscr.addstr(f"  Invalid Input: {e}\n")
+                err_flag = True
+
+            except CancelInputError:
+                return_val = None
+                break
+            except QuitInputError:
+                return_val = "quit"
+                break
 
             # Clean up prompt
             self.stdscr.move(y, x)
             self.stdscr.clrtoeol()
-            err_flag = True
 
         if err_flag:
             self.stdscr.clrtoeol()
