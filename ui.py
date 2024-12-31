@@ -106,55 +106,55 @@ class Menu:
 
             trading_pair = self.input_handler.get_input("Trading Pair", str, example="BTC-USD, ETH-USD")
 
-            if trading_pair == None: # n for new (start process all over)
+            if trading_pair == "n": # n for new (start process all over)
                 continue
-            if trading_pair == "quit" or trading_pair == "q":
-                return "quit"
+            if trading_pair == "quit" or trading_pair == None:
+                return trading_pair
             trading_pair = trading_pair.upper()
             asset = trading_pair.split("-")[0]
 
             self.stdscr.move(2, 0)
             start_date = self.input_handler.get_input("Start Date", datetime.datetime, format="YYYY-MM-DD", example="2022-01-01", default=datetime.datetime.now().strftime("%Y-%m-%d"))
-            if start_date == None:
+            if start_date == "n":
                 continue
-            if start_date == "quit":
-                return "quit"
+            if start_date == "quit" or start_date == None:
+                return start_date
 
             # TODO: Have default value be amount returned by api call for product candle
             self.stdscr.move(3, 0)
             end_date =self.input_handler.get_input("End Date", datetime.datetime, format="YYYY-MM-DD", example="2022-01-01")
-            if end_date == None:
+            if end_date == "n":
                 continue
-            if end_date == "quit":
-                return "quit"
+            if end_date == "quit" or end_date == None:
+                return end_date
 
             self.stdscr.move(4, 0)
             start_price =self.input_handler.get_input("Start Price", float, example="100.00, 0.01")
-            if start_price == None:
+            if start_price == "n":
                 continue
-            if start_price == "quit":
-                return "quit"
+            if start_price == "quit" or start_price == None:
+                return start_price
 
             self.stdscr.move(5, 0)
             end_price =self.input_handler.get_input(f"End Price on {end_date}", float, example="100.00, 0.01")
-            if end_price == None:
+            if end_price == "n":
                 continue
-            if end_price == "quit":
-                return "quit"
+            if end_price == "quit" or end_price == None:
+                return end_price
 
             self.stdscr.move(6, 0)
             buy_price = self.input_handler.get_input("Buy Price", float, example="10000.00, 0.01")
-            if buy_price == None:
+            if buy_price == "n":
                 continue
-            if buy_price == "quit":
-                return "quit"
+            if buy_price == "quit" or buy_price == None:
+                return buy_price
 
             self.stdscr.move(7, 0)
             sell_price = self.input_handler.get_input("Sell Price", float, example="10000.00, 0.01")
-            if sell_price == None:
+            if sell_price == "n":
                 continue
-            if sell_price == "quit":
-                return "quit"
+            if sell_price == "quit" or sell_price == None:
+                return sell_price
 
             self.stdscr.move(8, 0)
             summary = f"""Summary
