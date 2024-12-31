@@ -28,7 +28,16 @@ def get_path_from_log_dir(*args):
 def get_path_from_data_dir(*args):
     return path.join(getcwd(), "data", *args)
 
-def write_data_to_file(file_path: str, data: dict) -> None:
+def write_fstring_to_file(file_path: str, data: str) -> None:
+    print("Writing data to file path: " + file_path)
+    try:
+        with open(file_path, "w") as f:
+            f.write(data)
+    except Exception as e:
+        print("Failed to write data to file: " + file_path)
+        print("Error:\n", e)
+
+def write_dict_data_to_file(file_path: str, data: dict) -> None:
     print("Writing data to file path: " + file_path)
     try:
         with open(file_path, "w") as f:
@@ -97,7 +106,7 @@ def add_data_to_csv_file(file_path: str, data: dict) -> None:
         print("Failed to add data to file: " + file_path)
         print("Error:\n", e)
 
-def get_data_from_file(file_path: str) -> dict:
+def get_dict_data_from_file(file_path: str) -> dict:
     print("Reading data from file path: " + file_path)
     try:
         with open(file_path, "r") as f:

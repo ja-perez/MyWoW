@@ -380,12 +380,12 @@ def predictionoverview(stdscr):
     output_filename = f"{start_date.replace("-", "")}_{end_date.replace("-", "")}_{trading_pair}_candles.json"
     output_file_path = utils.get_path_from_data_dir(output_filename)
     if os.path.exists(output_file_path):
-        candles = utils.get_data_from_file(output_file_path)
+        candles = utils.get_dict_data_from_file(output_file_path)
     else:
         start_datetime = datetime.datetime.strptime(start_date, "%Y-%m-%d")
         end_datetime = datetime.datetime.strptime(end_date, "%Y-%m-%d")
         candles = cb.get_asset_candles(cb.get_client(), trading_pair, portfolio.Granularity.ONE_DAY, start_datetime, end_datetime)
-        utils.write_data_to_file(output_file_path, candles)
+        utils.write_dict_data_to_file(output_file_path, candles)
 
     high = -1.0
     low = 99999999999999999.9

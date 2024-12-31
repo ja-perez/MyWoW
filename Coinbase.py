@@ -42,7 +42,7 @@ def main():
     client = get_client()
 
     try:
-        candles = utils.get_data_from_file(utils.get_path_from_log_dir("candles.json"))["candles"]
+        candles = utils.get_dict_data_from_file(utils.get_path_from_log_dir("candles.json"))["candles"]
 
         for candle in candles:
             date: str = utils.unix_to_date_string(int(candle["start"]))
