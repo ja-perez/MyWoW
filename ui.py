@@ -3,6 +3,14 @@ import datetime
 
 from inputhandling import InputHandler
 
+class QuitMenuError(Exception):
+    """Raised when user quits the program."""
+    pass
+
+class CancelMenuError(Exception):
+    """Raised when the menu is cancelled"""
+    pass
+
 class Menu:
     def __init__(self, title: str, options: dict = None, stdscr: curses.window = None, action: callable = None, input_handler: InputHandler = None):
         self.title = title
@@ -18,9 +26,9 @@ class Menu:
     def display_options(self) -> int:
         y, _ = self.stdscr.getyx()
         y += 2 # 1 newline
-
         self.stdscr.addstr(y - 1, 0, self.title)
 
+        options_count = len(self.options)
         choice = 0
         while True:
             self.stdscr.move(y, 0)
@@ -30,19 +38,12 @@ class Menu:
                 option_output = f"{'>' if i == choice else ' '} {self.options[key]}"
                 self.stdscr.addstr(y + i, 0, option_output)
 
-            user_input = self.stdscr.getch()
-            user_input_char = chr(user_input).lower()
-
-            if user_input == curses.KEY_UP or user_input_char == 'w':
-                choice = len(self.options) - 1 if choice - 1 < 0 else choice - 1
-            if user_input == curses.KEY_DOWN or user_input_char == 's':
-                choice = (choice + 1) % len(self.options)
-            if user_input_char == 'q':
-                return "quit"
-
-            if user_input == curses.KEY_ENTER or user_input == 10 or user_input_char == '\n' \
-            or user_input_char == 'q':
+            updated_choice = self.input_handler.get_choice(choice, options_count)
+            if updated_choice == curses.KEY_ENTER:
                 break
+            if updated_choice == 'q':
+                raise QuitMenuError
+            choice = updated_choice
 
         keys = [key for key in self.options]
         return keys[choice]

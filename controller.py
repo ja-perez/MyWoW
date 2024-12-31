@@ -1,5 +1,5 @@
 import curses
-from ui import Menu
+from ui import Menu, QuitMenuError
 from services import PredictionService
 from inputhandling import InputHandler
 import datetime
@@ -35,28 +35,28 @@ class Controller:
             "pred_overview": "Prediction Overview",
             "quit": "Quit"
         }
-        self.menus["main"] = Menu("Main Menu", mainmenu_options, self.stdscr, self.handle_mainmenu_action)
+        self.menus["main"] = Menu("Main Menu", mainmenu_options, self.stdscr, self.handle_mainmenu_action, input_handler=self.input_handler)
 
-        self.menus["preds"] = Menu("Current Predictions", stdscr=self.stdscr, action=self.handle_preds_action)
+        self.menus["preds"] = Menu("Current Predictions", stdscr=self.stdscr, action=self.handle_preds_action, input_handler=self.input_handler)
 
-        self.menus["results"] = Menu("Prediction Results", stdscr=self.stdscr, action=self.handle_results_action)
+        self.menus["results"] = Menu("Prediction Results", stdscr=self.stdscr, action=self.handle_results_action, input_handler=self.input_handler)
 
         self.menus["add_pred"] = Menu("Add Prediction", stdscr=self.stdscr, action=self.handle_add_pred_action, input_handler=self.input_handler)
 
         self.menus["edit_pred"] = Menu("Edit Prediction", stdscr=self.stdscr, action=self.handle_edit_pred_action, input_handler=self.input_handler)
 
-        self.menus["pred_overview"] = Menu("Prediction Overview", stdscr=self.stdscr, action=self.handle_pred_overview_action)
+        self.menus["pred_overview"] = Menu("Prediction Overview", stdscr=self.stdscr, action=self.handle_pred_overview_action, input_handler=self.input_handler)
 
         self.active_menu = self.menus["main"] # Start program with main menu as default active menu
 
     def run(self):
         while self.active_menu != None:
             self.stdscr.erase()
-            if self.active_menu.has_options:
-                choice = self.active_menu.display_options()
-                self.active_menu.action(choice)
-            else:
+            try:
                 self.active_menu.display_interactive_menu()
+            except QuitMenuError:
+                self.on_exit()
+                self.active_menu = None
 
     def load_state(self):
         file_path = utils.get_path_from_data_dir("state.json")
@@ -80,7 +80,8 @@ class Controller:
 
         utils.write_dict_data_to_file(utils.get_path_from_data_dir("state.json"), state)
 
-    def handle_mainmenu_action(self, choice):
+    def handle_mainmenu_action(self):
+        choice = self.active_menu.display_options()
         if choice == "preds":
             self.prediction_service.update_predictions()
             self.active_menu = self.menus[choice]
