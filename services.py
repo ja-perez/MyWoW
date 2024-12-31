@@ -3,7 +3,6 @@ import utils
 import datetime
 from portfolio import Granularity
 import os
-from functools import singledispatchmethod
 
 class PredictionService:
     def __init__(self):
@@ -47,13 +46,13 @@ class PredictionService:
 
     def update_predictions(self):
         file_data = self.get_predictions()
-        today = datetime.datetime.today()
+        todays_date = datetime.date.today()
 
         new_data = []
         for pred in file_data:
             end_date = datetime.datetime.strptime(pred["end_date"], "%Y-%m-%d")
             start_date = datetime.datetime.strptime(pred["start_date"], "%Y-%m-%d")
-            if today > end_date:
+            if todays_date > end_date.date():   # want to update preds day after end date
                 trading_pair = pred["trading-pair"]
                 candle = cb.get_asset_candles(self.client, trading_pair, Granularity.ONE_DAY, start_date, end_date) 
                 pred_result = pred.copy()
@@ -77,25 +76,17 @@ class PredictionService:
 
         utils.write_many_data_to_csv_file(self.prediction_data_path, new_data)
 
-    @singledispatchmethod
-    def get_candles(self, _: any, trading_pair: str, start_date: datetime.datetime, end_date: datetime.datetime) -> list[dict]:
+    def get_candles(self, trading_pair: str, start_date: datetime.datetime, end_date: datetime.datetime) -> list[dict]:
         output_filename = f"{start_date.strftime("%Y%m%d")}_{end_date.strftime("%Y%m%d")}_{trading_pair}_candles.json"
         output_file_path = utils.get_path_from_data_dir(output_filename)
 
         if os.path.exists(output_file_path):
-            candles = utils.get_data_from_file(output_file_path)
+            candles = utils.get_dict_data_from_file(output_file_path)
         else:
             candles = cb.get_asset_candles(self.client, trading_pair, Granularity.ONE_DAY, start_date, end_date)
-            utils.write_data_to_file(output_file_path, candles)
+            utils.write_dict_data_to_file(output_file_path, candles)
 
         return candles
-
-    @get_candles.register
-    def _(self, params: dict) -> list[dict]:
-        trading_pair = params["trading-pair"]
-        start_date = datetime.datetime.strptime(params["start_date"], "%Y-%m-%d")
-        end_date = datetime.datetime.strptime(params["end_date"], "%Y-%m-%d")
-        return self.get_candles(0, trading_pair, start_date, end_date)
 
 def calculateBreakEvenPrice(P1: float, Q1: float, Q2: float):
     GR = (Q2 - Q1) / Q1
