@@ -2,6 +2,8 @@ import curses
 from ui import Menu
 from services import PredictionService
 from inputhandling import InputHandler
+import datetime
+import utils
 
 class Controller:
     def __init__(self, stdscr: curses.window):
@@ -22,6 +24,7 @@ class Controller:
         self.prediction_service = PredictionService()
 
         self.setup_menus()
+        self.load_state()
 
     def setup_menus(self):
         mainmenu_options = {
@@ -55,6 +58,28 @@ class Controller:
             else:
                 self.active_menu.display_interactive_menu()
 
+    def load_state(self):
+        file_path = utils.get_path_from_data_dir("state.json")
+        
+        if utils.path.exists(file_path):
+            try:
+                data = utils.get_dict_data_from_file(file_path)
+                self.active_menu = self.menus[data.get("active_menu", "main")]
+                self.state = data
+            except Exception as e:
+                print(f"Failed to load saved state: {e}")
+
+    def on_exit(self):
+        state = {
+            "active_menu": None,
+            "data": self.prediction_service.get_predictions(),
+            "results": self.prediction_service.get_results()
+        }
+        if self.active_menu:
+            state["active_menu"] = next(key for key, val in self.menus.items() if val == self.active_menu)
+
+        utils.write_dict_data_to_file(utils.get_path_from_data_dir("state.json"), state)
+
     def handle_mainmenu_action(self, choice):
         if choice == "preds":
             self.prediction_service.update_predictions()
@@ -69,6 +94,7 @@ class Controller:
         if choice == "pred_overview":
             self.active_menu = self.menus[choice]
         if choice == "quit":
+            self.on_exit()
             self.active_menu = None
 
     def handle_preds_action(self):
@@ -76,6 +102,7 @@ class Controller:
         res = self.active_menu.listpredictions(data)
 
         if res == "quit":
+            self.on_exit()
             self.active_menu = None
         elif res in self.menus:
             self.active_menu = self.menus[res]
@@ -85,6 +112,7 @@ class Controller:
         res = self.active_menu.listresults(data)
 
         if res == "quit":
+            self.on_exit()
             self.active_menu = None
         elif res in self.menus:
             self.active_menu = self.menus[res]
@@ -93,6 +121,7 @@ class Controller:
         pred = self.active_menu.addprediction()
 
         if pred == "quit":
+            self.on_exit()
             self.active_menu = None
         elif pred:
             self.prediction_service.add_prediction(pred)
@@ -105,6 +134,7 @@ class Controller:
         res = self.active_menu.editprediction(data)
 
         if res == "quit":
+            self.on_exit()
             self.active_menu = None
         elif res:
             symbol, start_date = res
@@ -118,10 +148,14 @@ class Controller:
 
         if data:
             results = data[0]
-            candles = self.prediction_service.get_candles(results)
+            trading_pair = results["trading-pair"]
+            start_date = datetime.datetime.strptime(results["start_date"], "%Y-%m-%d")
+            end_date = datetime.datetime.strptime(results["end_date"], "%Y-%m-%d")
+            candles = self.prediction_service.get_candles(trading_pair, start_date, end_date)
             res = self.active_menu.predictionoverview(results, candles)
 
             if res == "quit":
+                self.on_exit()
                 self.active_menu = None
             else:
                 self.active_menu = self.menus["main"]
