@@ -2,16 +2,19 @@ import curses
 import datetime
 
 class InvalidInputError(Exception):
-    """Raised when input is invalid"""
+    """Raised when input is invalid."""
     pass
 
 class CancelInputError(Exception):
-    """Raised when input is cancelled"""
+    """Raised when input is cancelled."""
     pass
 
 class QuitInputError(Exception):
     """Raised when user quits the input process."""
     pass
+
+class FinalInputError(Exception):
+    """Raised when users input indicates submission"""
 
 class InputHandler:
     def __init__(self, stdscr: curses.window):
@@ -107,6 +110,20 @@ class InputHandler:
             self.stdscr.clrtoeol()
 
         return return_val
+
+    def get_choice(self, curr_choice: int, options_cnt: int) -> int:
+        while True:
+            input_key = self.stdscr.getch()
+            input_key_as_char = chr(input_key).lower()
+
+            if input_key == curses.KEY_UP or input_key_as_char == 'w':
+                return max(0, curr_choice - 1)
+            if input_key == curses.KEY_DOWN or input_key_as_char == 's':
+                return min(options_cnt - 1, curr_choice + 1)
+            if input_key == curses.KEY_ENTER or input_key == 10 or input_key_as_char == '\n':
+                return curses.KEY_ENTER
+            if input_key_as_char == 'q':
+                return 'q'
 
 def main(stdscr):
     stdscr = curses.initscr()
