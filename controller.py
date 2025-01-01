@@ -1,5 +1,5 @@
 import curses
-from ui import Menu, QuitMenuError
+from ui import Menu, QuitMenuError, CancelMenuError
 from services import PredictionService
 from inputhandling import InputHandler
 import datetime
@@ -53,7 +53,7 @@ class Controller:
         while self.active_menu != None:
             self.stdscr.erase()
             try:
-                self.active_menu.display_interactive_menu()
+                self.active_menu.display_menu()
             except QuitMenuError:
                 self.on_exit()
                 self.active_menu = None
@@ -100,31 +100,22 @@ class Controller:
 
     def handle_preds_action(self):
         data = self.prediction_service.get_predictions()
-        res = self.active_menu.listpredictions(data)
+        res = self.active_menu.predictions(data)
 
-        if res == "quit":
-            self.on_exit()
-            self.active_menu = None
-        elif res in self.menus:
+        if res in self.menus:
             self.active_menu = self.menus[res]
 
     def handle_results_action(self):
         data = self.prediction_service.get_results()
-        res = self.active_menu.listresults(data)
+        res = self.active_menu.results(data)
 
-        if res == "quit":
-            self.on_exit()
-            self.active_menu = None
-        elif res in self.menus:
+        if res in self.menus:
             self.active_menu = self.menus[res]
 
     def handle_add_pred_action(self):
         pred = self.active_menu.addprediction()
 
-        if pred == "quit":
-            self.on_exit()
-            self.active_menu = None
-        elif pred:
+        if pred:
             self.prediction_service.add_prediction(pred)
             self.active_menu = self.menus["main"]
         else:
@@ -134,12 +125,10 @@ class Controller:
         data = self.prediction_service.get_predictions()
         res = self.active_menu.editprediction(data)
 
-        if res == "quit":
-            self.on_exit()
-            self.active_menu = None
-        elif res:
-            symbol, start_date = res
-            self.prediction_service.edit_prediction(symbol, start_date)
+        if res:
+            objective, symbol, start_date = res
+            if objective == "delete":
+                self.prediction_service.remove_prediction(symbol, start_date)
             self.active_menu = self.menus["main"]
         else:
             self.active_menu = self.menus["main"]
@@ -149,17 +138,16 @@ class Controller:
 
         if data:
             results = data[0]
-            trading_pair = results["trading-pair"]
+
+            trading_pair = results["trading_pair"]
             start_date = datetime.datetime.strptime(results["start_date"], "%Y-%m-%d")
             end_date = datetime.datetime.strptime(results["end_date"], "%Y-%m-%d")
             candles = self.prediction_service.get_candles(trading_pair, start_date, end_date)
+
             res = self.active_menu.predictionoverview(results, candles)
 
-            if res == "quit":
-                self.on_exit()
-                self.active_menu = None
-            else:
-                self.active_menu = self.menus["main"]
+            if res in self.menus:
+                self.active_menu = self.menus[res]
 
         else:
             self.active_menu = self.menus["main"]
