@@ -158,9 +158,9 @@ class Menu:
 
                 summary_header = f"\nSummary of {prediction['symbol']} prediction:\n\t{'START':<15} {'END':<15}"
                 summary_dates = f"\t{prediction['start_date']:<15} {prediction['end_date']:<15}"
-                summary_prices = f"\t{prediction['start_price']:<15.8f} {prediction['end_price']:<15.8f}\n"
-                summary_buysell_header = f"\t{'BUY':<15} {'SELL':<15}",
-                summary_buysell_prices = f"\t{prediction['buy_price']:<15.8f} {prediction['sell_price']:<15.8f}\n",
+                summary_prices = f"\t${prediction['start_price']:<14.8f} ${prediction['end_price']:<14.8f}\n"
+                summary_buysell_header = f"\t{'BUY':<15} {'SELL':<15}"
+                summary_buysell_prices = f"\t${prediction['buy_price']:<14.8f} ${prediction['sell_price']:<14.8f}\n"
                 summary = '\n'.join([summary_header, summary_dates, summary_prices, summary_buysell_header, summary_buysell_prices])
                 self.stdscr.addstr(summary)
 
