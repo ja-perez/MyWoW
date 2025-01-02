@@ -55,7 +55,7 @@ class InputHandler:
                   default = None,
                   validation = None,
                   can_refresh = False):
-        err_flag = True
+        err_flag = False
         return_val = None
 
         # Input prompt
@@ -63,7 +63,7 @@ class InputHandler:
         if format or example:
 
             output += f'({format}{" " if format and example else ""}'
-            output += f'{"e.g. {example}" if example else ""}): '
+            output += f'{f"e.g. {example}" if example else ""}): '
         self.stdscr.addstr(output)
 
         y, x = self.stdscr.getyx()
@@ -96,18 +96,20 @@ class InputHandler:
                     user_input = datetime.datetime.strptime(user_input, "%Y-%m-%d").strftime("%Y-%m-%d")
 
                 if validation and not validation(user_input):
-                    raise ValidateInputError
+                    raise ValidateInputError("Validation failed")
                 
                 return_val = user_input
-                err_flag = False
                 break
 
             except ValueError as e:
-                self.stdscr.addstr(f"  Invalid Input: {e}\n")
+                self.stdscr.addstr(f"  Invalid Input (VE): {e}\n")
+                err_flag = True
             except InvalidInputError as e:
-                self.stdscr.addstr(f"  Invalid Input: {e}\n")
+                self.stdscr.addstr(f"  Invalid Input (IIE): {e}\n")
+                err_flag = True
             except ValidateInputError as e:
-                self.stdscr.addstr(f"  Invalid Input: Validation Error\n")
+                self.stdscr.addstr(f"  Invalid Input (VE): {e}\n")
+                err_flag = True
 
             except CancelInputError:
                 raise
@@ -118,6 +120,7 @@ class InputHandler:
 
             except Exception as e:
                 self.stdscr.addstr(f"  Invalid Input: Unexpected Error\n\t{e}")
+                err_flag = True
 
             # Clean up previous input
             self.stdscr.move(y, x)
