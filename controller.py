@@ -1,5 +1,5 @@
 import curses
-from ui import Menu, QuitMenuError, CancelMenuError
+from menu import Menu, QuitMenuError, CancelMenuError
 from services import PredictionService
 from inputhandling import InputHandler
 import datetime
