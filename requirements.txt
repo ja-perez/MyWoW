@@ -1,3 +1,4 @@
 coinbase>=1.8.1
 coinbase-advanced-py>=1.8.1
 python-dotenv>=1.0.1
+pymssql>=2.3.2
