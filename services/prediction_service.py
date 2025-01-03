@@ -2,9 +2,9 @@ import datetime
 import os
 
 import utils
-import Coinbase as cb
+import services.coinbase as cb
+from services.coinbase import Granularity
 from coinbase.rest import RESTClient
-from portfolio import Granularity
 
 
 class PredictionService:

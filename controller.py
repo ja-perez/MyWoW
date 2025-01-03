@@ -2,9 +2,9 @@ import curses
 import datetime
 
 import utils
-import Coinbase as cb
 from ui import Menu, QuitMenuError, CancelMenuError
 from services import PredictionService
+import services.coinbase as cb
 from inputhandling import InputHandler
 
 
