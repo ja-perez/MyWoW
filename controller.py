@@ -1,9 +1,11 @@
 import curses
-from menu import Menu, QuitMenuError, CancelMenuError
+import datetime
+
+import utils
+from ui import Menu, QuitMenuError, CancelMenuError
 from services import PredictionService
 from inputhandling import InputHandler
-import datetime
-import utils
+
 
 class Controller:
     def __init__(self, stdscr: curses.window):

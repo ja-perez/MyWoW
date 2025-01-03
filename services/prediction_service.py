@@ -1,8 +1,10 @@
-import Coinbase as cb
-import utils
 import datetime
-from portfolio import Granularity
 import os
+
+import utils
+import Coinbase as cb
+from portfolio import Granularity
+
 
 class PredictionService:
     def __init__(self):
