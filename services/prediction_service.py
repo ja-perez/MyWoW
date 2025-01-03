@@ -3,12 +3,13 @@ import os
 
 import utils
 import Coinbase as cb
+from coinbase.rest import RESTClient
 from portfolio import Granularity
 
 
 class PredictionService:
-    def __init__(self):
-        self.client = cb.get_client()
+    def __init__(self, client: RESTClient = None):
+        self.client = client if client else cb.get_client()
         
         self.prediction_data_path = utils.get_path_from_data_dir("dummy_data.csv")
         self.prediction_results_path = utils.get_path_from_data_dir("dummy_results.csv")

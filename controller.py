@@ -2,6 +2,7 @@ import curses
 import datetime
 
 import utils
+import Coinbase as cb
 from ui import Menu, QuitMenuError, CancelMenuError
 from services import PredictionService
 from inputhandling import InputHandler
@@ -23,7 +24,8 @@ class Controller:
         }
 
         self.input_handler = InputHandler(stdscr)
-        self.prediction_service = PredictionService()
+        client = cb.get_client()
+        self.prediction_service = PredictionService(client)
 
         self.setup_menus()
         self.load_state()

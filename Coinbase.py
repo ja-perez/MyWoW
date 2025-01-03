@@ -4,9 +4,9 @@ from portfolio import Granularity
 import utils
 import datetime
 
-def get_client(dotenv_path: str = ".env"):
+def get_client(dotenv_path: str = ".env") -> RESTClient:
     # Load environment variables
-    config = dotenv_values(".env")
+    config = dotenv_values(dotenv_path)
     coinbaseAPIKey = config["COINBASE_API_KEY"]
     coinbaseAPISecret = config["COINBASE_API_SECRET"]
 
