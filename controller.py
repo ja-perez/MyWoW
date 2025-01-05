@@ -37,6 +37,8 @@ class Controller:
             "add_pred": "Add New Prediction",
             "edit_pred": "Edit Prediction",
             "pred_overview": "Prediction Overview",
+            "result_overview": "Result Overview",
+            "test": "Test Functionality",
             "quit": "Quit"
         }
         self.menus["main"] = Menu("Main Menu", mainmenu_options, self.stdscr, self.handle_mainmenu_action, input_handler=self.input_handler)
@@ -50,6 +52,10 @@ class Controller:
         self.menus["edit_pred"] = Menu("Edit Prediction", stdscr=self.stdscr, action=self.handle_edit_pred_action, input_handler=self.input_handler)
 
         self.menus["pred_overview"] = Menu("Prediction Overview", stdscr=self.stdscr, action=self.handle_pred_overview_action, input_handler=self.input_handler)
+
+        self.menus["result_overview"] = Menu("Result Overview", stdscr=self.stdscr, action=self.handle_result_overview_action, input_handler=self.input_handler)
+
+        self.menus["test"] = Menu("Test Menu", stdscr=self.stdscr, action=self.handle_test_action, input_handler=self.input_handler)
 
         self.active_menu = self.menus["main"] # Start program with main menu as default active menu
 
@@ -98,6 +104,10 @@ class Controller:
             self.active_menu = self.menus[choice]
         if choice == "pred_overview":
             self.active_menu = self.menus[choice]
+        if choice == "result_overview":
+            self.active_menu = self.menus[choice]
+        if choice == "test":
+            self.active_menu = self.menus[choice]
         if choice == "quit":
             self.on_exit()
             self.active_menu = None
@@ -138,20 +148,49 @@ class Controller:
             self.active_menu = self.menus["main"]
 
     def handle_pred_overview_action(self):
-        data = self.prediction_service.get_results()
+        data = self.prediction_service.get_predictions()
 
         if data:
-            results = data[0]
+            while True:
+                results = self.active_menu.selectprediction(data)
 
-            trading_pair = results["trading_pair"]
-            start_date = datetime.datetime.strptime(results["start_date"], "%Y-%m-%d")
-            end_date = datetime.datetime.strptime(results["end_date"], "%Y-%m-%d")
-            candles = self.prediction_service.get_candles(trading_pair, start_date, end_date)
+                res = self.active_menu.predictionoverview(results)
 
-            res = self.active_menu.predictionoverview(results, candles)
+                if res == "select_prediction":
+                    continue
+                if res in self.menus:
+                    self.active_menu = self.menus[res]
+
+        else:
+            res = self.active_menu.display_data_error()
 
             if res in self.menus:
                 self.active_menu = self.menus[res]
 
+    def handle_result_overview_action(self):
+        data = self.prediction_service.get_results()
+
+        if data:
+            while True:
+                results = self.active_menu.selectprediction(data)
+
+                trading_pair = results["trading_pair"]
+                start_date = datetime.datetime.strptime(results["start_date"], "%Y-%m-%d")
+                end_date = datetime.datetime.strptime(results["end_date"], "%Y-%m-%d")
+                candles = self.prediction_service.get_candles(trading_pair, start_date, end_date)
+
+                res = self.active_menu.resultoverview(results, candles)
+
+                if res == "select_prediction":
+                    continue
+                if res in self.menus:
+                    self.active_menu = self.menus[res]
+                    break
         else:
-            self.active_menu = self.menus["main"]
+            res = self.active_menu.display_data_error()
+
+            if res in self.menus:
+                self.active_menu = self.menus[res]
+
+    def handle_test_action(self):
+        self.active_menu = self.menus["main"]
