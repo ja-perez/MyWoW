@@ -112,7 +112,7 @@ class PredictionService:
                 'high': float(candle['high']),
                 'open': float(candle['open']),
                 'close': float(candle['close']),
-                'volume': int(candle['volume']),
+                'volume': float(candle['volume']),
             }
             candle['date'] = utils.unix_to_datetime_string(candle['start'])
             candle['range_high'] = range_high
@@ -122,67 +122,69 @@ class PredictionService:
 
         return candles
 
-def calculateBreakEvenPrice(P1: float, Q1: float, Q2: float):
-    GR = (Q2 - Q1) / Q1
-    P3 = P1 * (1 + GR)
-    # print("\t", P1, Q1, Q2)
-    # print("\t\t", GR, P3, "\n")
-    return P3
+class AnalysisService:
+    # Break-even Analysis
+    def calculateBreakEvenPrice(self, P1: float, Q1: float, Q2: float):
+        GR = (Q2 - Q1) / Q1
+        P3 = P1 * (1 + GR)
+        # print("\t", P1, Q1, Q2)
+        # print("\t\t", GR, P3, "\n")
+        return P3
 
-def calculateBreakEvenQuantity(P1: float, P2: float, L1: float):
-    GR = (P2 - P1) / P1
-    Q4 = L1 / GR
-    # print("\t", P1, P2, L1)
-    # print("\t\t", GR, Q4, "\n")
-    return Q4
+    def calculateBreakEvenQuantity(self, P1: float, P2: float, L1: float):
+        GR = (P2 - P1) / P1
+        Q4 = L1 / GR
+        # print("\t", P1, P2, L1)
+        # print("\t\t", GR, Q4, "\n")
+        return Q4
 
-def calculateRepositionGain(P1: float, P2: float, Q1: float):
-    GR = (P2 - P1) / P1
-    return Q1 * GR
+    def calculateRepositionGain(self, P1: float, P2: float, Q1: float):
+        GR = (P2 - P1) / P1
+        return Q1 * GR
 
-"""
-Position with loss (PWL):
-# P2 < P1 : Sold at lower price than bought
-# Q2 < Q1 : Value sold is less than value bought
-    Buy @ P1 with quantity value Q1
-    Sell @ P2 with quantity value Q2
+    def genBreakEvenAnalysis(self):
+        """
+        Position with loss (PWL):
+        # P2 < P1 : Sold at lower price than bought
+        # Q2 < Q1 : Value sold is less than value bought
+            Buy @ P1 with quantity value Q1
+            Sell @ P2 with quantity value Q2
 
-    L1 = Loss Value = Q2 - Q1
-    LR = Loss Rate = L1 / Q1
-   
+            L1 = Loss Value = Q2 - Q1
+            LR = Loss Rate = L1 / Q1
 
-Calculate required price to break even with initial position Q2:
-    Buy @ P2 with quantity value Q2 == Q1 - L1
-    Sell @ P3 with quantity value Q3 == Q2 + L1 == Q1
 
-    G1 = Gain Value = Q3 - Q2 == L1
-    GR = Gain Rate = G1 / Q2
+        Calculate required price to break even with initial position Q2:
+            Buy @ P2 with quantity value Q2 == Q1 - L1
+            Sell @ P3 with quantity value Q3 == Q2 + L1 == Q1
 
-    P3 = P2 (1 + GR)
-    
+            G1 = Gain Value = Q3 - Q2 == L1
+            GR = Gain Rate = G1 / Q2
 
-Calculate required quantity to break even with final price P1:
-    Buy @ P2 with quantity value Q4
-    Sell @ P1 with quantity value Q5 == Q4 + L1
+            P3 = P2 (1 + GR)
 
-    G1 = Gain Value = Q5 - Q4 == L1
-    GR = Gain Rate = G1 / Q4 == (P1 - P2) / P2
 
-    Q4 = G1 / GR == L1 / GR
-"""
-def analysis():
-    initial_price = 2.65
-    initial_quantity = 50.11
+        Calculate required quantity to break even with final price P1:
+            Buy @ P2 with quantity value Q4
+            Sell @ P1 with quantity value Q5 == Q4 + L1
 
-    final_price = 2.0
-    final_quantity = initial_quantity * (1 + (final_price - initial_price) / initial_price)
-    loss = initial_quantity - final_quantity
+            G1 = Gain Value = Q5 - Q4 == L1
+            GR = Gain Rate = G1 / Q4 == (P1 - P2) / P2
 
-    print(f"Initial Price: {initial_price:<15} Initial Quantity: {initial_quantity:<15.2f}")
-    print(f"Final Price: {final_price:<15}\tFinal Quantity: {final_quantity:<15.8f}")
-    print(f"Loss: {loss}")
-    print()
-    print(f"Break Even Price: {calculateBreakEvenPrice(final_price, final_quantity, initial_quantity):.15f}")
-    print(f"Break Even Quantity: {calculateBreakEvenQuantity(final_price, initial_price, loss):.8f}")
-    repoGain = calculateRepositionGain(final_price, initial_price, initial_quantity)
-    print(f"Reposition Gain: {repoGain - loss:.8f} ({(repoGain - loss)/initial_quantity * 100:.2f}%)")
+            Q4 = G1 / GR == L1 / GR
+        """
+        initial_price = 2.65
+        initial_quantity = 50.11
+
+        final_price = 2.0
+        final_quantity = initial_quantity * (1 + (final_price - initial_price) / initial_price)
+        loss = initial_quantity - final_quantity
+
+        print(f"Initial Price: {initial_price:<15} Initial Quantity: {initial_quantity:<15.2f}")
+        print(f"Final Price: {final_price:<15}\tFinal Quantity: {final_quantity:<15.8f}")
+        print(f"Loss: {loss}")
+        print()
+        print(f"Break Even Price: {self.calculateBreakEvenPrice(final_price, final_quantity, initial_quantity):.15f}")
+        print(f"Break Even Quantity: {self.calculateBreakEvenQuantity(final_price, initial_price, loss):.8f}")
+        repoGain = self.calculateRepositionGain(final_price, initial_price, initial_quantity)
+        print(f"Reposition Gain: {repoGain - loss:.8f} ({(repoGain - loss)/initial_quantity * 100:.2f}%)")

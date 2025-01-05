@@ -31,7 +31,7 @@ Options:
 ```
 Results
 --------
-Symbol    Trading-Pair    Start Date    Start Price   End Price   Act. End Price    End Date    Buy Price   Sell Price    
+Symbol    Trading-Pair    Start Date    Start Price   End Price   Act. End Price    End Date    Buy Price   Sell Price
     xx          xxxxxx      xx-xx-xx            $xx         $xx              $xx    xx-xx-xx          $xx          $xx
     xx          xxxxxx      xx-xx-xx            $xx         $xx              $xx    xx-xx-xx          $xx          $xx
     xx          xxxxxx      xx-xx-xx            $xx         $xx              $xx    xx-xx-xx          $xx          $xx
@@ -80,4 +80,5 @@ Options:
 '' Horizontal navigation: LEFT - [LEFT_KEY, 'a'], RIGHT - [RIGHT_KEY, 'd']
 ''  - Enter key for selection of current choice or by pressing character associated with option
 > (char_1)option_1      (char_2)option_2      (char_3)option_3      ...
+
 ```
