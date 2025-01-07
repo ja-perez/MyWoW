@@ -1,6 +1,5 @@
 import curses
 from controller import Controller
-from database.database import MyWoWSetup
 
 def main(stdscr):
     stdscr = curses.initscr()
@@ -17,5 +16,4 @@ def main(stdscr):
     curses.endwin()
 
 if __name__ == "__main__":
-    MyWoWSetup()
-    # curses.wrapper(main)
+    curses.wrapper(main)
