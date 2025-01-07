@@ -5,11 +5,13 @@ import utils
 import services.coinbase as cb
 from services.coinbase import Granularity
 from coinbase.rest import RESTClient
+from database import Database
 
 
 class PredictionService:
-    def __init__(self, client: RESTClient = None):
+    def __init__(self, client: RESTClient = None, db: Database = None):
         self.client = client if client else cb.get_client()
+        self.db = db if db else Database()
         
         self.prediction_data_path = utils.get_path_from_data_dir("dummy_data.csv")
         self.prediction_results_path = utils.get_path_from_data_dir("dummy_results.csv")
@@ -31,21 +33,25 @@ class PredictionService:
         return data
 
     def get_results(self) -> list[dict]:
-        file_data = utils.get_csv_data_from_file(self.prediction_results_path)
-        data = []
-        for row in file_data:
-            data.append({
-                "symbol": row[0],
-                "trading_pair": row[1],
-                "start_date": row[2],
-                "end_date": row[3],
-                "start_price": float(row[4]),
-                "end_price": float(row[5]),
-                "buy_price": float(row[6]),
-                "sell_price": float(row[7]),
-                "actual_end_price": float(row[8]),
-            })
-        return data
+        if self.db.table_exists('results'):
+            results = self.db.get_rows('results', limit=10)
+            return results
+        else:
+            file_data = utils.get_csv_data_from_file(self.prediction_results_path)
+            data = []
+            for row in file_data:
+                data.append({
+                    "symbol": row[0],
+                    "trading_pair": row[1],
+                    "start_date": row[2],
+                    "end_date": row[3],
+                    "start_price": float(row[4]),
+                    "end_price": float(row[5]),
+                    "buy_price": float(row[6]),
+                    "sell_price": float(row[7]),
+                    "actual_end_price": float(row[8]),
+                })
+            return data
 
     def update_predictions(self):
         file_data = self.get_predictions()
@@ -90,14 +96,41 @@ class PredictionService:
         utils.write_many_data_to_csv_file(self.prediction_data_path, new_data)
 
     def get_candles(self, trading_pair: str, start_date: datetime.datetime, end_date: datetime.datetime) -> list[dict]:
-        output_filename = f'{start_date.strftime("%Y%m%d")}_{end_date.strftime("%Y%m%d")}_{trading_pair}_candles.json'
-        output_file_path = utils.get_path_from_data_dir(output_filename)
+        if self.db.table_exists('candles'):
+            days_timedelta = end_date - start_date
+            days = days_timedelta.days + 1
+            where_conditions = self.db.build_where(
+                eq={
+                    'trading_pair':f"'{trading_pair}'"
+                },
+                btwn={
+                    'date':{
+                        'min':f"'{datetime.datetime.strftime(start_date, "%Y-%m-%d")}'",
+                        'max':f"'{datetime.datetime.strftime(end_date, "%Y-%m-%d")}'",
+                    }
+                })
+            candles = self.db.get_rows('candles', where_statement=where_conditions)
 
-        if os.path.exists(output_file_path):
-            candles = utils.get_dict_data_from_file(output_file_path)
+            if len(candles) < days:
+                last_available_date = start_date
+                for candle in candles:
+                    candle_datetime = datetime.datetime.strptime(candle['date'], '%Y-%m-%d')
+                    last_available_date = max(candle_datetime, last_available_date)
+                last_available_date += datetime.timedelta(days=1)
+
+                candles = cb.get_asset_candles(self.client, trading_pair, Granularity.ONE_DAY, last_available_date, end_date)
+                for candle in candles:
+                    self.upload_candle(trading_pair, candle)
+
         else:
-            candles = cb.get_asset_candles(self.client, trading_pair, Granularity.ONE_DAY, start_date, end_date)
-            utils.write_dict_data_to_file(output_file_path, candles)
+            output_filename = f'{start_date.strftime("%Y%m%d")}_{end_date.strftime("%Y%m%d")}_{trading_pair}_candles.json'
+            output_file_path = utils.get_path_from_data_dir(output_filename)
+
+            if os.path.exists(output_file_path):
+                candles = utils.get_dict_data_from_file(output_file_path)
+            else:
+                candles = cb.get_asset_candles(self.client, trading_pair, Granularity.ONE_DAY, start_date, end_date)
+                utils.write_dict_data_to_file(output_file_path, candles)
 
         range_high = float('-inf')
         range_low = float('inf')
@@ -121,6 +154,30 @@ class PredictionService:
             candles[i] = candle
 
         return candles
+
+    def upload_candle(self, trading_pair: str, candle: dict):
+        start = int(candle['start'])
+        date = datetime.datetime.fromtimestamp(start).strftime("%Y-%m-%d")
+        candle_open = float(candle['open'])
+        high = float(candle['high'])
+        low = float(candle['low'])
+        close = float(candle['close'])
+        volume = float(candle['volume'])
+        symbol = trading_pair.split('-')[0]
+        id = f"{symbol}-{start}"
+
+        insert_data = [
+            id,
+            date,
+            start,
+            trading_pair,
+            candle_open,
+            high,
+            low,
+            close,
+            volume,
+        ]
+        self.db.insert_one(values=insert_data, table_name='candles')
 
 class AnalysisService:
     # Break-even Analysis
