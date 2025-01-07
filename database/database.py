@@ -1,7 +1,9 @@
 import sqlite3
-import utils.utils
 import datetime
-from os import path
+from os import path, getcwd, listdir
+import json
+
+data_dir = path.join(getcwd(), 'data')
 
 class InvalidTableNameError(Exception):
     pass
@@ -13,7 +15,7 @@ class InvalidInsertError(Exception):
     pass
 
 class Database:
-    def __init__(self, db_name: str):
+    def __init__(self, db_name: str = ''):
         self.db_name = db_name
         self.conn = sqlite3.connect(db_name)
 
@@ -118,6 +120,12 @@ class Database:
         for val in values:
             formatted_values.append(self.format_value(val))
 
+        p_index, p_col = self.get_table_primary_key(table_name=table_name)
+        duplicate = self.get_rows(table_name=table_name, where_statement=f"WHERE {p_col}={formatted_values[p_index]}")
+        if duplicate:
+            print(f'Failed INSERT: Duplicate "{p_col}" found.')
+            return
+
         query = f"INSERT INTO {table_name} VALUES ({', '.join(formatted_values)})"
         self.cur.execute(query)
         self.conn.commit()
@@ -145,19 +153,51 @@ class Database:
         self.cur.execute(query)
         self.conn.commit()
 
-    @check_table
-    def get_rows(self, table_name: str = None, limit: int = 20, where_values: dict = {}, headers: list[str] = None) -> list[list[str | float | int | datetime.datetime]]:
-        if where_values:
-            where_query = f"WHERE {" AND ".join(self.format_dict_values(where_values))}"
-        else:
-            where_query = ""
+    @staticmethod
+    def build_where(eq: dict={}, lt: dict={}, gt: dict={}, lte: dict={}, gte: dict={}, btwn: dict={}) -> str:
+        """Constructs a where statement that requires all conditions be met.
 
+        :eq, lt, gt, lte, gte: { column_name : value, ... }
+
+        :btwn: { column_name : { 'min': value, 'max': value }, ... }
+
+        Notes: 
+            - Between (btwn) comparison is inclusive for min and max values. 
+            - If the condition contains a string, it must be passed with alternating apostraphes and quotation marks, ex: "'John'" or '"John"'
+
+        Example: 
+        - build_where_with_conditions(eq={'name':"'John'"}, gt={'account_total':500}, lte={'items_purchased':10})
+        #prints "WHERE name='John' AND account_total>500 AND items_purchased<=10"
+
+        Return: 
+            - String: "WHERE name='John' AND account_total>500 AND items_purchased<=10"
+        """
+        where_conditions = []
+        if eq:
+            where_conditions.extend([f"{col_name}={eq[col_name]}" for col_name in eq])
+        if btwn:
+            where_conditions.extend([f"{col_name}>={btwn[col_name]['min']}" for col_name in btwn])
+            where_conditions.extend([f"{col_name}<={btwn[col_name]['max']}" for col_name in btwn])
+        if lt:
+            where_conditions.extend([f"{col_name}<{eq[col_name]}" for col_name in lt])
+        if lte:
+            where_conditions.extend([f"{col_name}<={eq[col_name]}" for col_name in lte])
+        if gt:
+            where_conditions.extend([f"{col_name}>{eq[col_name]}" for col_name in gt])
+        if gte:
+            where_conditions.extend([f"{col_name}>={eq[col_name]}" for col_name in gte])
+        return f"WHERE {' AND '.join(where_conditions)}"
+
+    @check_table
+    def get_rows(self, table_name: str = None, limit: int = 20, where_statement: str = '', headers: list[str] = None) -> list[dict[str: str | float | int | datetime.datetime]]:
         if headers:
             header_query = ', '.join(headers)
         else:
             header_query = '*'
 
-        query = f"SELECT {header_query} FROM {table_name}" + f" {where_query} " + f" LIMIT {limit}"
+        limit_statement = f"{f'LIMIT {limit}' if limit != -1 else ''}"
+
+        query = f"SELECT {header_query} FROM {table_name}" + f" {where_statement} " + f" {limit_statement}"
         res = self.cur.execute(query)
         rows = res.fetchall()
         return [self.format_row(row=row, table_name=table_name, headers=headers) for row in rows]
@@ -179,25 +219,35 @@ class Database:
         return schema
 
     @check_table
-    def format_row(self, row: list[str], table_name: str = None, headers: list[str] = None) -> list[str | float | int | datetime.datetime]:
+    def get_table_primary_key(self, table_name: str = None) -> list[int, str]:
+        query = self.cur.execute(f"PRAGMA table_info({table_name})")
+        table_info = query.fetchall()
+        for col_info in table_info:
+            if col_info[-1] == 1:
+                return col_info[:2]
+
+    @check_table
+    def format_row(self, row: list[str], table_name: str = None, headers: list[str] = None) -> dict[str: str | float | int | datetime.datetime]:
         """
         return_value: [ col_value, ... ]
         """
         schema = self.get_table_schema(table_name)
         if headers:
             schema = { header: schema[header] for header in schema if header in headers}
+        else:
+            headers = [ header for header in schema ]
 
-        formatted_row = []
+        formatted_row = {}
         for i, col_name in enumerate(headers):
             col_type = schema[col_name]
             if col_type == "TEXT":
-                formatted_row.append(row[i])
+                formatted_row[col_name] = row[i]
             if col_type == "REAL":
-                formatted_row.append(float(row[i]))
+                formatted_row[col_name] = float(row[i])
             if col_type == "INT":
-                formatted_row.append(int(row[i]))
+                formatted_row[col_name] = int(row[i])
             if col_type == "DATE":
-                formatted_row.append(datetime.datetime.strptime(row[i], "%Y-%m-%d"))
+                formatted_row[col_name] = row[i]
 
         return formatted_row
 
@@ -222,7 +272,11 @@ def results_setup(db: Database):
         db.set_table("results")
 
         # Seeding db with data currently in csv file "dummy_results"
-        results_data = utils.get_csv_data_from_file(utils.get_path_from_data_dir("dummy_results.csv"))
+        results_data_path = path.join(data_dir, "dummy_results.csv")
+        results_data = []
+        with open(results_data_path, 'r') as f:
+            for line in f:
+                results_data.append(line.strip().split(','))
         for row in results_data:
             symbol: str = row[0]
             trading_pair = row[1]
@@ -257,50 +311,56 @@ def results_setup(db: Database):
     except InvalidValuesError:
         raise
 
+def get_candle_data():
+    candle_files = [path.join(data_dir, file) for file in listdir(data_dir) if file.endswith("candles.json")]
+    for file_path in candle_files:
+        file_name: str = path.basename(file_path)
+        file_name_parts = file_name.split('_')
+        trading_pair = file_name_parts[2].upper()
+
+        with open(file_path, 'r') as f:
+            file_data = json.load(f)
+        data = []
+        for row in file_data:
+            start = int(row['start'])
+            date = datetime.datetime.fromtimestamp(start).strftime("%Y-%m-%d")
+            candle_open = float(row['open'])
+            high = float(row['high'])
+            low = float(row['low'])
+            close = float(row['close'])
+            volume = float(row['volume'])
+            data.append([
+                date,
+                start,
+                trading_pair,
+                candle_open,
+                high,
+                low,
+                close,
+                volume,
+            ])
+        return data
+
 def candles_setup(db: Database):
     try:
         # Setting up candles table
         candles_def = {
+            "candle_id": "TEXT PRIMARY KEY UNIQUE",
             "date": "DATE",
             "start": "INT",
             "trading_pair": "TEXT",
-            "open": "FLOAT",
-            "high": "FLOAT",
-            "low": "FLOAT",
-            "close": "FLOAT",
-            "volume": "FLOAT",
+            "open": "REAL",
+            "high": "REAL",
+            "low": "REAL",
+            "close": "REAL",
+            "volume": "REAL",
         }
         db.create_table("candles", candles_def)
-        db.set_table("candles")
 
         # Seeding db with *candles.json files in data dir
-        candle_files = utils.get_files_by_extension(utils.get_path_from_data_dir(), "candles.json")
-        for file_path in candle_files:
-            file_name: str = path.basename(file_path)
-            file_name_parts = file_name.split('_')
-            trading_pair = file_name_parts[2].upper()
-
-            file_data = utils.get_dict_data_from_file(file_path)
-            for row in file_data:
-                start = int(row['start'])
-                date = utils.unix_to_date_string(start)
-                open = float(row['open'])
-                high = float(row['high'])
-                low = float(row['low'])
-                close = float(row['close'])
-                volume = float(row['volume'])
-
-                insert_data = [
-                    date,
-                    start,
-                    trading_pair,
-                    open,
-                    high,
-                    low,
-                    close,
-                    volume,
-                ]
-                db.insert_one(insert_data)
+        # candle_data = get_candle_data()
+        # for data in candle_data:
+        #     db.insert_one(data)
 
     except InvalidTableNameError as e:
         raise
@@ -313,22 +373,22 @@ def MyWoWSetup():
     db = Database(db_name="mywow.db")
 
     try:
-        # results_setup()
-        # candles_setup()
-        shib_results = db.get_rows("results", where_values={'symbol':'SHIB'}, headers=['symbol', 'start_price', 'start_date'])
-        for result in shib_results:
-            print(result)
+        # results_setup(db)
+        # candles_setup(db)
+        pass
     except InvalidTableNameError as e:
         print(f"Invalid Table Name")
     except InvalidInsertError as e:
         print(f"Invalid Insert")
     except InvalidValuesError as e:
         print(f"Invalid Values")
+    except Exception as e:
+        print(f"UNKNOWN ERROR: {e}")
     finally:
         db.on_exit()
 
 def main():
-    pass
+    MyWoWSetup()
 
 if __name__=="__main__":
     main()
