@@ -242,5 +242,6 @@ fabric.properties
 # Log Files
 logs/*
 
-# Data Folder
+# Data and DB Folders
 data/*
+database/*.db
