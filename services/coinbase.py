@@ -44,7 +44,8 @@ def get_default_portfolio(client: RESTClient):
  
 def get_asset_candles(client: RESTClient, product_id: str, granularity: str, start: datetime.datetime, end: datetime.datetime, limit: int = None):
     start_unix = str(int(start.timestamp()))
-    end_unix = str(int(end.timestamp()))
+    end_adjusted = end + datetime.timedelta(days=1)
+    end_unix = str(int(end_adjusted.timestamp()))
     if (not Granularity.verify(granularity)):
         raise ValueError("Granularity must be one of the following: ONE_MINUTE, FIVE_MINUTES, FIFTEEN_MINUTES, THIRTY_MINUTES, ONE_HOUR, TWO_HOUR, SIX_HOUR, ONE_DAY")
     candles_response = client.get_candles(product_id=product_id, start=start_unix, end=end_unix, granularity=granularity, limit=limit)
