@@ -1,5 +1,7 @@
 import sqlite3
 import utils.utils
+import datetime
+from os import path
 
 class InvalidTableNameError(Exception):
     pass
@@ -36,6 +38,13 @@ class Database:
 
     def check_table(func):
         def wrapper(self, *args, **kwargs):
+            if args:
+                for arg in args:
+                    if type(arg) != str:
+                        continue
+                    if self.table_exists(arg):
+                        return func(self, *args, **kwargs)
+
             table_name = kwargs.get('table_name', self.table_name)
             if not table_name or table_name.strip() == "" or not self.table_exists(table_name):
                 raise InvalidTableNameError
@@ -137,18 +146,26 @@ class Database:
         self.conn.commit()
 
     @check_table
-    def get_rows(self, table_name: str = None, limit: int = 20, where_values: dict = {}):
+    def get_rows(self, table_name: str = None, limit: int = 20, where_values: dict = {}, headers: list[str] = None) -> list[list[str | float | int | datetime.datetime]]:
         if where_values:
             where_query = f"WHERE {" AND ".join(self.format_dict_values(where_values))}"
         else:
             where_query = ""
 
-        query = f"SELECT * FROM {table_name}" + f" {where_query} " + f" LIMIT {limit}"
+        if headers:
+            header_query = ', '.join(headers)
+        else:
+            header_query = '*'
+
+        query = f"SELECT {header_query} FROM {table_name}" + f" {where_query} " + f" LIMIT {limit}"
         res = self.cur.execute(query)
         rows = res.fetchall()
-        return rows
+        return [self.format_row(row=row, table_name=table_name, headers=headers) for row in rows]
 
-    def get_table_schema(self, table_name: str = None):
+    def get_table_schema(self, table_name: str = None) -> dict[str:str]:
+        """
+        return_value: { col_name : col_type, ... }
+        """
         table_name = table_name if table_name else self.table_name
         if not table_name or not self.table_exists(table_name):
             raise InvalidTableNameError
@@ -161,18 +178,36 @@ class Database:
         }
         return schema
 
-def MyWoWSetup():
-    db = Database(db_name="mywow.db")
+    @check_table
+    def format_row(self, row: list[str], table_name: str = None, headers: list[str] = None) -> list[str | float | int | datetime.datetime]:
+        """
+        return_value: [ col_value, ... ]
+        """
+        schema = self.get_table_schema(table_name)
+        if headers:
+            schema = { header: schema[header] for header in schema if header in headers}
 
+        formatted_row = []
+        for i, col_name in enumerate(headers):
+            col_type = schema[col_name]
+            if col_type == "TEXT":
+                formatted_row.append(row[i])
+            if col_type == "REAL":
+                formatted_row.append(float(row[i]))
+            if col_type == "INT":
+                formatted_row.append(int(row[i]))
+            if col_type == "DATE":
+                formatted_row.append(datetime.datetime.strptime(row[i], "%Y-%m-%d"))
+
+        return formatted_row
+
+def results_setup(db: Database):
     try:
-        # Setting up predictions table
+        # Setting up results table
         results_def = {
-            # [symbol]-[start_month][start_day][end_month][end_day]-[symbol count]-[P]
-            # SHIB-12151218-005-P, SHIB-12151218-006-P
-            "prediction_id": "TEXT",
-            # [symbol]-[start_month][start_day][end_month][end_day]-[symbol count]-[R]
-            # SHIB-12151218-005-R, SHIB-12151218-006-R
-            "result_id": "TEXT PRIMARY KEY",
+            # [symbol]-[start_month][start_day][end_month][end_day]-[start_year]
+            # SHIB-12151218-2024, GTC-12151218-2024
+            "prediction_id": "TEXT PRIMARY KEY UNIQUE",
             "symbol": "TEXT",
             "trading_pair": "TEXT",
             "start_date": "DATE",
@@ -189,24 +224,100 @@ def MyWoWSetup():
         # Seeding db with data currently in csv file "dummy_results"
         results_data = utils.get_csv_data_from_file(utils.get_path_from_data_dir("dummy_results.csv"))
         for row in results_data:
+            symbol: str = row[0]
+            trading_pair = row[1]
+            start_date = datetime.datetime.strptime(row[2], "%Y-%m-%d")
+            end_date = datetime.datetime.strptime(row[3], "%Y-%m-%d")
+            start_price = float(row[4])
+            end_price = float(row[5])
+            buy_price = float(row[6])
+            sell_price = float(row[7])
+            actual_end_price = float(row[8])
+
+            prediction_id = f"{symbol.upper()}-{start_date.month}{start_date.day}{end_date.month}{end_date.day}-{start_date.year}"
+
             insert_data = [
-                row[0],
-                row[1],
-                row[2],
-                row[3],
-                float(row[4]),
-                float(row[5]),
-                float(row[6]),
-                float(row[7]),
-                float(row[8]),
+                prediction_id,
+                symbol,
+                trading_pair,
+                datetime.datetime.strftime(start_date, "%Y-%m-%d"),
+                datetime.datetime.strftime(end_date, "%Y-%m-%d"),
+                start_price,
+                end_price,
+                buy_price,
+                sell_price,
+                actual_end_price
             ]
             db.insert_one(insert_data)
 
-        shib_results = db.get_rows(where_values={"symbol":"SHIB"})        
-        print("SHIB Results:")
+    except InvalidTableNameError:
+        raise
+    except InvalidInsertError:
+        raise
+    except InvalidValuesError:
+        raise
+
+def candles_setup(db: Database):
+    try:
+        # Setting up candles table
+        candles_def = {
+            "date": "DATE",
+            "start": "INT",
+            "trading_pair": "TEXT",
+            "open": "FLOAT",
+            "high": "FLOAT",
+            "low": "FLOAT",
+            "close": "FLOAT",
+            "volume": "FLOAT",
+        }
+        db.create_table("candles", candles_def)
+        db.set_table("candles")
+
+        # Seeding db with *candles.json files in data dir
+        candle_files = utils.get_files_by_extension(utils.get_path_from_data_dir(), "candles.json")
+        for file_path in candle_files:
+            file_name: str = path.basename(file_path)
+            file_name_parts = file_name.split('_')
+            trading_pair = file_name_parts[2].upper()
+
+            file_data = utils.get_dict_data_from_file(file_path)
+            for row in file_data:
+                start = int(row['start'])
+                date = utils.unix_to_date_string(start)
+                open = float(row['open'])
+                high = float(row['high'])
+                low = float(row['low'])
+                close = float(row['close'])
+                volume = float(row['volume'])
+
+                insert_data = [
+                    date,
+                    start,
+                    trading_pair,
+                    open,
+                    high,
+                    low,
+                    close,
+                    volume,
+                ]
+                db.insert_one(insert_data)
+
+    except InvalidTableNameError as e:
+        raise
+    except InvalidInsertError as e:
+        raise
+    except InvalidValuesError as e:
+        raise
+
+def MyWoWSetup():
+    db = Database(db_name="mywow.db")
+
+    try:
+        # results_setup()
+        # candles_setup()
+        shib_results = db.get_rows("results", where_values={'symbol':'SHIB'}, headers=['symbol', 'start_price', 'start_date'])
         for result in shib_results:
             print(result)
-
     except InvalidTableNameError as e:
         print(f"Invalid Table Name")
     except InvalidInsertError as e:
@@ -219,5 +330,5 @@ def MyWoWSetup():
 def main():
     pass
 
-if __name__=='__main__':
+if __name__=="__main__":
     main()
