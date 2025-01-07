@@ -4,9 +4,12 @@ import datetime
 import utils
 from ui import Menu, QuitMenuError, CancelMenuError
 from services import PredictionService
+from database import Database
 import services.coinbase as cb
 from inputhandling import InputHandler
 
+class MissingDataError(Exception):
+    pass
 
 class Controller:
     def __init__(self, stdscr: curses.window):
@@ -25,7 +28,8 @@ class Controller:
 
         self.input_handler = InputHandler(stdscr)
         client = cb.get_client()
-        self.prediction_service = PredictionService(client)
+        db = Database('mywow.db')
+        self.prediction_service = PredictionService(client, db)
 
         self.setup_menus()
         self.load_state()
@@ -67,6 +71,9 @@ class Controller:
             except QuitMenuError:
                 self.on_exit()
                 self.active_menu = None
+            except MissingDataError:
+                self.handle_data_error()
+
 
     def load_state(self):
         file_path = utils.get_path_from_data_dir("state.json")
@@ -114,6 +121,8 @@ class Controller:
 
     def handle_preds_action(self):
         data = self.prediction_service.get_predictions()
+        if not data:
+            raise MissingDataError
         res = self.active_menu.predictions(data)
 
         if res in self.menus:
@@ -121,6 +130,8 @@ class Controller:
 
     def handle_results_action(self):
         data = self.prediction_service.get_results()
+        if not data:
+            raise MissingDataError
         res = self.active_menu.results(data)
 
         if res in self.menus:
@@ -137,6 +148,8 @@ class Controller:
 
     def handle_edit_pred_action(self):
         data = self.prediction_service.get_predictions()
+        if not data:
+            raise MissingDataError
         res = self.active_menu.editprediction(data)
 
         if res:
@@ -149,48 +162,49 @@ class Controller:
 
     def handle_pred_overview_action(self):
         data = self.prediction_service.get_predictions()
+        if not data:
+            raise MissingDataError
 
-        if data:
-            while True:
-                results = self.active_menu.selectprediction(data)
+        while True:
+            results = self.active_menu.selectprediction(data)
 
-                res = self.active_menu.predictionoverview(results)
+            res = self.active_menu.predictionoverview(results)
 
-                if res == "select_prediction":
-                    continue
-                if res in self.menus:
-                    self.active_menu = self.menus[res]
-
-        else:
-            res = self.active_menu.display_data_error()
-
+            if res == "select_prediction":
+                continue
             if res in self.menus:
                 self.active_menu = self.menus[res]
 
     def handle_result_overview_action(self):
         data = self.prediction_service.get_results()
+        if not data:
+            raise MissingDataError
 
-        if data:
-            while True:
-                results = self.active_menu.selectprediction(data)
+        while True:
+            results = self.active_menu.selectprediction(data)
 
-                trading_pair = results["trading_pair"]
-                start_date = datetime.datetime.strptime(results["start_date"], "%Y-%m-%d")
-                end_date = datetime.datetime.strptime(results["end_date"], "%Y-%m-%d")
-                candles = self.prediction_service.get_candles(trading_pair, start_date, end_date)
+            trading_pair = results["trading_pair"]
+            start_date = datetime.datetime.strptime(results["start_date"], "%Y-%m-%d")
+            end_date = datetime.datetime.strptime(results["end_date"], "%Y-%m-%d")
+            candles = self.prediction_service.get_candles(trading_pair, start_date, end_date)
 
-                res = self.active_menu.resultoverview(results, candles)
+            if not candles:
+                raise MissingDataError
 
-                if res == "select_prediction":
-                    continue
-                if res in self.menus:
-                    self.active_menu = self.menus[res]
-                    break
-        else:
-            res = self.active_menu.display_data_error()
+            res = self.active_menu.resultoverview(results, candles)
 
+            if res == "select_prediction":
+                continue
             if res in self.menus:
                 self.active_menu = self.menus[res]
+                break
+
+    def handle_data_error(self):
+        res = self.active_menu.display_data_error()
+        if res in self.menus:
+            self.active_menu = self.menus[res]
+        else:
+            self.active_menu = self.menus["main"]
 
     def handle_test_action(self):
         self.active_menu = self.menus["main"]
