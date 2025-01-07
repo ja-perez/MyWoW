@@ -1,1 +1,1 @@
-from .database import Database, MyWoWSetup
+from .database import Database
