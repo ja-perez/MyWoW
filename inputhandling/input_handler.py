@@ -74,8 +74,7 @@ class InputHandler:
                 # Default
                 if not user_input and default:
                     self.stdscr.addstr(y, x, default + '\n')
-                    return_val = default
-                    break
+                    user_input = default
                 if not user_input:
                     raise InvalidInputError("Required value, cannot be empty")
                 # Cancel current action
@@ -93,7 +92,7 @@ class InputHandler:
                 elif input_type == float:
                     user_input = float(user_input)
                 elif input_type == datetime.datetime:
-                    user_input = datetime.datetime.strptime(user_input, "%Y-%m-%d").strftime("%Y-%m-%d")
+                    user_input = datetime.datetime.strptime(user_input, "%Y-%m-%d")
 
                 if validation and not validation(user_input):
                     raise ValidateInputError("Validation failed")
