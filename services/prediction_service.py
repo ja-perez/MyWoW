@@ -131,15 +131,15 @@ class PredictionService:
 
         self.predictions_updated = False
 
-    def remove_prediction(self, symbol: str, start_date: str):
+    def remove_prediction(self, prediction: Prediction):
         if self.db.table_exists('predictions'):
-            self.db.delete_where(table_name='predictions', values={'symbol':symbol, 'start_date':start_date})
+            self.db.delete_where(table_name='predictions', values={'symbol':prediction.symbol, 'start_date':prediction.view_start_date()})
         else:
             file_data = self.get_predictions()
 
             new_data = []
             for pred in file_data:
-                if pred["symbol"] == symbol and pred["start_date"] == start_date:
+                if pred["symbol"] == prediction.symbol and pred["start_date"] == prediction.view_start_date():
                     continue
                 new_data.append(pred)
 

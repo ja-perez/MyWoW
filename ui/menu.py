@@ -200,34 +200,15 @@ class Menu:
                 continue
 
     @menu_exception_handler
-    def editprediction(self, data: list[dict]):
+    def editprediction(self, prediction: Prediction):
         try:
-            def symbol_validation(target_symbol: str):
-                for pred in data:
-                    pred_symbol: str = pred['symbol']
-                    if target_symbol.lower() == pred_symbol.lower():
-                        return True
-                return False
-            symbol = self.input_handler.get_input(
-                prompt="Symbol", 
-                input_type=str, 
-                example="BTC/btc", 
-                validation=symbol_validation).upper()
-            def date_validation(target_date: datetime.datetime):
-                for pred in data:
-                    if symbol == pred["symbol"] and target_date.strftime("%Y-%m-%d") == pred["start_date"]:
-                        return True
-                return False
-            start_date = self.input_handler.get_input(
-                prompt="Start Date", 
-                input_type=datetime.datetime, 
-                format="YYYYY-MM-DD", 
-                example="2024-01-01", 
-                validation=date_validation).strftime("%Y-%m-%d")
-
-            self.stdscr.addstr('\n')
+            header = f"{'SYMBOL':<15} {'START DATE':<15} {'START PRICE':<15}\n"
+            self.display_header(header)
+            info = f"{prediction.symbol:<15} {prediction.view_start_date():<15} ${prediction.start_price:<14.8f}\n"
+            self.stdscr.addstr(info + '\n')
 
             self.options = {
+                "select_prediction": "Select a different Prediction",
                 "delete": "Remove Prediction",
                 "main": "Main Menu",
                 "quit": "Exit Program"
@@ -238,8 +219,10 @@ class Menu:
                 raise QuitMenuError
             if choice == "main":
                 raise CancelMenuError
+            if choice == "select_prediction":
+                return choice
             if choice == "delete":
-                return (choice, symbol, start_date)
+                return choice
 
         except QuitInputError:
             raise QuitMenuError
@@ -264,7 +247,7 @@ class Menu:
 
     @menu_output
     @menu_exception_handler
-    def selectprediction(self, data: list[dict]):
+    def selectprediction(self, data: list[dict], use_model=False):
         y, _ = self.stdscr.getyx()
         header = f"{'Symbol':<10} {'Start Date':<15} {'Start Price':<15} {'End Date':<15}\n"
         self.display_header(header)
@@ -293,7 +276,11 @@ class Menu:
 
         self.stdscr.move(y, 0)
         self.stdscr.clrtobot()
-        return data[choice]
+
+        if use_model:
+            return Prediction(data=data[choice])
+        else:
+            return data[choice]
 
     @menu_exception_handler
     def predictionoverview(self, prediction: dict):

@@ -161,15 +161,24 @@ class Controller:
         data = self.prediction_service.get_predictions()
         if not data:
             raise MissingDataError
-        res = self.active_menu.editprediction(data)
 
-        if res:
-            objective, symbol, start_date = res
-            if objective == "delete":
-                self.prediction_service.remove_prediction(symbol, start_date)
-            self.active_menu = self.menus["main"]
+        while True:
+            prediction = self.active_menu.selectprediction(data, use_model=True)
+            res = self.active_menu.editprediction(prediction)
+
+            if res == "select_prediction":
+                continue
+            else:
+                break
+
+        if res == "delete":
+            self.prediction_service.remove_prediction(prediction)
+            res = 'main'
+
+        if res in self.menus:
+            self.active_menu = self.menus[res]
         else:
-            self.active_menu = self.menus["main"]
+            self.active_menu = self.menus['main']
 
     def handle_pred_overview_action(self):
         data = self.prediction_service.get_predictions()
