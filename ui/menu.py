@@ -89,11 +89,11 @@ class Menu:
 
     @menu_exception_handler
     def results(self, data: list[dict]):
-        header = f"{'Symbol':<10} {'Start Date':<15} {'Start Price':<15} {'End Price':<15} {'End Date':<15} {'Actual End Price':<15}\n"
+        header = f"{'Symbol':<10} {'Start Date':<15} {'Start Price':<15} {'End Price':<15} {'End Date':<15} {'Close Price':<15}\n"
         self.display_header(header)
 
         for pred in data:
-            formattedPred = f"{pred['symbol']:<10} {pred['start_date']:<15} {pred['start_price']:<15.8f} {pred['end_price']:<15.8f} {pred['end_date']:<15} {pred['actual_end_price']:<15.8f}\n"
+            formattedPred = f"{pred['symbol']:<10} {pred['start_date']:<15} {pred['start_price']:<15.8f} {pred['end_price']:<15.8f} {pred['end_date']:<15} {pred['close_price']:<15.8f}\n"
             self.stdscr.addstr(formattedPred)
 
         self.options = {
@@ -125,15 +125,17 @@ class Menu:
         if choice == 'quit':
             raise QuitMenuError
 
+    @menu_output
     @menu_exception_handler
     def addprediction(self):
-        prediction = {}
         y, _ = self.stdscr.getyx()
+
         while True:
             self.stdscr.move(y, 0)
             self.stdscr.clrtobot()
 
             try:
+                prediction = {}
                 prediction["trading_pair"] = self.input_handler.get_input(
                     prompt="Trading Pair", input_type=str, example="BTC-USD", can_refresh=True).upper()
                 prediction["symbol"] = prediction["trading_pair"].split("-")[0]
@@ -143,32 +145,32 @@ class Menu:
 
                 prediction["end_date"] = self.input_handler.get_input(
                     prompt="End Date", input_type=datetime.datetime, format="YYYYY-MM-DD", example="2024-01-01", validation=lambda x: x > prediction["start_date"], can_refresh=True)
-                
+
                 prediction["start_price"] = self.input_handler.get_input(
                     prompt="Start Price", input_type=float, example="35600.75", validation=lambda x:x > 0, can_refresh=True)
-
                 prediction["end_price"] = self.input_handler.get_input(
                     prompt="End Price", input_type=float, example="35600.75", validation=lambda x:x > 0, can_refresh=True)
 
                 prediction["buy_price"] = self.input_handler.get_input(
                     prompt="Buy Price", input_type=float, example="35600.75", validation=lambda x:x > 0, can_refresh=True)
-
                 prediction["sell_price"] = self.input_handler.get_input(
                     prompt="Sell Price", input_type=float, example="35600.75", validation=lambda x:x > 0, can_refresh=True)
 
-                summary_header = f"\nSummary of {prediction['symbol']} prediction:\n\t{'START':<15} {'END':<15}"
-                summary_dates = f"\t{prediction['start_date']:<15} {prediction['end_date']:<15}"
-                summary_prices = f"\t${prediction['start_price']:<14.8f} ${prediction['end_price']:<14.8f}\n"
-                summary_buysell_header = f"\t{'BUY':<15} {'SELL':<15}"
-                summary_buysell_prices = f"\t${prediction['buy_price']:<14.8f} ${prediction['sell_price']:<14.8f}\n"
-                summary = '\n'.join([summary_header, summary_dates, summary_prices, summary_buysell_header, summary_buysell_prices])
-                self.stdscr.addstr(summary)
+                summary_header = f"\nSummary of prediction for {prediction['symbol']}:"
+                summary_labels = f"{'':<10} {'DATE':<15} {'PRICE':<15}"
+                summary_start = f"{'START':<10} {prediction['start_date'].strftime('%Y-%m-%d'):<15} {prediction['start_price']:<15}"
+                summary_end = f"{'END':<10} {prediction['end_date'].strftime('%Y-%m-%d'):<15} {prediction['end_price']:<15}\n"
+                summary_buy = f"{'BUY':<10} ${prediction['buy_price']:<15.8f}"
+                summary_sell = f"{'SELL':<10} ${prediction['sell_price']:<15.8f}\n"
+
+                summary = '\n'.join([summary_header, summary_labels, summary_start, summary_end, summary_buy, summary_sell])
+                self.stdscr.addstr(summary + '\n')
 
                 submit = self.input_handler.get_input(
                     prompt="Submit Prediction", input_type=str, format="y/n", default="n", can_refresh=True).lower()
                 
-                if submit == 'y':
-                    return prediction
+                if submit == 'n':
+                    prediction = None
 
                 self.options = {
                     "new": "Start new prediction",
@@ -178,23 +180,21 @@ class Menu:
                 choice = self.display_options()
 
                 if choice == "main":
-                    raise CancelMenuError
+                    return (prediction, choice)
                 if choice == "quit":
-                    raise QuitMenuError
+                    return (prediction, choice)
                 if choice == "new":
-                    raise RefreshMenuError
+                    return (prediction, choice)
 
             except QuitInputError:
                 raise QuitMenuError
             except QuitMenuError:
                 raise
             except CancelInputError:
-                return None
+                raise CancelMenuError
             except CancelMenuError:
-                return None
+                raise
             except RefreshInputError:
-                continue
-            except RefreshMenuError:
                 continue
 
     @menu_exception_handler
@@ -206,14 +206,22 @@ class Menu:
                     if target_symbol.lower() == pred_symbol.lower():
                         return True
                 return False
-            symbol = self.input_handler.get_input(prompt="Symbol", input_type=str, example="BTC/btc", validation=symbol_validation).upper()
-            def date_validation(target_date: str):
+            symbol = self.input_handler.get_input(
+                prompt="Symbol", 
+                input_type=str, 
+                example="BTC/btc", 
+                validation=symbol_validation).upper()
+            def date_validation(target_date: datetime.datetime):
                 for pred in data:
-                    if symbol == pred["symbol"] and target_date == pred["start_date"]:
+                    if symbol == pred["symbol"] and target_date.strftime("%Y-%m-%d") == pred["start_date"]:
                         return True
                 return False
             start_date = self.input_handler.get_input(
-                prompt="Start Date", input_type=datetime.datetime, format="YYYYY-MM-DD", example="2024-01-01", validation=date_validation)
+                prompt="Start Date", 
+                input_type=datetime.datetime, 
+                format="YYYYY-MM-DD", 
+                example="2024-01-01", 
+                validation=date_validation).strftime("%Y-%m-%d")
 
             self.stdscr.addstr('\n')
 
@@ -256,7 +264,7 @@ class Menu:
     @menu_exception_handler
     def selectprediction(self, data: list[dict]):
         y, _ = self.stdscr.getyx()
-        header = f"{'Symbol':<10} {'Start Date':<15} {'Start Price':<15} {'End Price':<15} {'End Date':<15} {'Actual End Price':<15}\n"
+        header = f"{'Symbol':<10} {'Start Date':<15} {'Start Price':<15} {'End Date':<15}\n"
         self.display_header(header)
 
         results_count = len(data)
@@ -265,7 +273,7 @@ class Menu:
             self.stdscr.move(y + 1, 0)
             self.stdscr.clrtobot()
             for i, pred in enumerate(data):
-                formatted_result = f"{pred['symbol']:<10} {pred['start_date']:<15} {pred['start_price']:<15.8f} {pred['end_price']:<15.8f} {pred['end_date']:<15} {pred['actual_end_price']:<15.8f}\n"
+                formatted_result = f"{pred['symbol']:<10} {pred['start_date']:<15} {pred['start_price']:<15.8f} {pred['end_date']:<15}\n"
                 # Highlight current choice (highlight in this case means reverse color pallet)
                 if i == choice:
                     self.stdscr.addstr(formatted_result, curses.A_REVERSE)
@@ -328,7 +336,7 @@ class Menu:
 
     @menu_exception_handler
     def resultoverview(self, result: dict, candles: list[dict]):
-        header = f'{"Symbol":<15} {"Start Date":<15} {"Closing Date":<15} {"Closing Price":<15} {"High":<15} {"Low":<15}\n'
+        header = f'{"Symbol":<15} {"Start Date":<15} {"End Date":<15} {"Close Price":<15} {"High":<15} {"Low":<15}\n'
         self.display_header(header)
 
         high = candles[0]['range_high']
@@ -342,8 +350,8 @@ class Menu:
             end_price = result["end_price"]
             buy_price = result["buy_price"]
             sell_price = result["sell_price"]
-            actual_end_price = result["actual_end_price"]
-            self.stdscr.addstr(f"{trading_pair:<15} {start_date:<15} {end_date:<15} {actual_end_price:<15.8f} {high:<15.8f} {low:<15.8f}\n")
+            close_price = result["close_price"]
+            self.stdscr.addstr(f"{trading_pair:<15} {start_date:<15} {end_date:<15} {close_price:<15.8f} {high:<15.8f} {low:<15.8f}\n")
     
             self.displaypricechart(candles)
     
