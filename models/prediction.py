@@ -126,6 +126,7 @@ class Prediction:
 
     def view_start_date(self):
         return self.start_date.strftime("%Y-%m-%d")
+
     def view_end_date(self):
         return self.end_date.strftime("%Y-%m-%d")
 
@@ -141,6 +142,19 @@ class Prediction:
             self.buy_price,
             self.end_price,
         ]
+
+    def to_json(self):
+        return {
+            'symbol': self.symbol,
+            'trading_pair': self.trading_pair,
+            'start_date': self.view_start_date(),
+            'end_date': self.view_start_date(),
+            'start_price': str(self.start_price),
+            'end_price': str(self.end_price),
+            'buy_price': str(self.buy_price),
+            'sell_price': str(self.sell_price),
+            'close_price': str(self.close_price)
+        }
 
 class Result(Prediction):
     def __init__(self, data: dict = None):

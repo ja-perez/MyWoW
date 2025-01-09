@@ -19,11 +19,16 @@ class PredictionService:
 
         self.predictions_updated = False
 
-    def get_predictions(self) -> list[dict | Prediction]:
+    def get_predictions(self, to_json=False) -> list[dict | Prediction]:
         # TODO: See ui/menu.py/Menu/selectprediction
         if self.db.table_exists('predictions'):
-            results = self.db.get_rows('predictions', limit=10)
-            return [Prediction(data=result_data) for result_data in results]
+            res = self.db.get_rows('predictions', limit=10)
+            predictions = [Prediction(data=result_data) for result_data in res]
+
+            if to_json:
+                return [pred.to_json() for pred in predictions]
+            else:
+                return predictions
         else:
             file_data = utils.get_csv_data_from_file(self.prediction_data_path)
             data = []
@@ -40,11 +45,16 @@ class PredictionService:
                 })
             return data
 
-    def get_results(self) -> list[dict | Prediction]:
+    def get_results(self, to_json=False) -> list[dict | Prediction]:
         # TODO: See ui/menu.py/Menu/selectprediction
         if self.db.table_exists('results'):
-            results = self.db.get_rows('results', limit=10)
-            return [Prediction(data=result_data) for result_data in results]
+            res = self.db.get_rows('results', limit=10)
+            results = [Prediction(data=result_data) for result_data in res]
+
+            if to_json:
+                return [result.to_json() for result in results]
+            else:
+                return results 
         else:
             file_data = utils.get_csv_data_from_file(self.prediction_results_path)
             data = []
