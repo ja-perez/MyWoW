@@ -158,12 +158,12 @@ class Controller:
             raise QuitMenuError
 
     def handle_edit_pred_action(self):
-        data = self.prediction_service.get_predictions()
+        data = self.prediction_service.get_predictions(use_model=True)
         if not data:
             raise MissingDataError
 
         while True:
-            prediction = self.active_menu.selectprediction(data, use_model=True)
+            prediction = self.active_menu.selectprediction(data)
             res = self.active_menu.editprediction(prediction)
 
             if res == "select_prediction":
@@ -181,14 +181,14 @@ class Controller:
             self.active_menu = self.menus['main']
 
     def handle_pred_overview_action(self):
-        data = self.prediction_service.get_predictions()
+        data = self.prediction_service.get_predictions(use_model=True)
         if not data:
             raise MissingDataError
 
         while True:
-            results = self.active_menu.selectprediction(data)
-
-            res = self.active_menu.predictionoverview(results)
+            prediction = self.active_menu.selectprediction(data)
+            candles = self.prediction_service.get_candles(prediction.trading_pair, prediction.start_date, prediction.end_date)
+            res = self.active_menu.predictionoverview(prediction, candles)
 
             if res == "select_prediction":
                 continue
@@ -197,7 +197,7 @@ class Controller:
                 break
 
     def handle_result_overview_action(self):
-        data = self.prediction_service.get_results()
+        data = self.prediction_service.get_results(use_model=True)
         if not data:
             raise MissingDataError
 

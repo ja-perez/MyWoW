@@ -161,13 +161,12 @@ class PredictionService:
                 })
 
             candles = self.db.get_rows('candles', where_statement=where_conditions)
-
+            
             if len(candles) < days:
                 last_available_date = start_date
                 for candle in candles:
                     candle_datetime = datetime.datetime.strptime(candle['date'], '%Y-%m-%d')
                     last_available_date = max(candle_datetime, last_available_date)
-                last_available_date += datetime.timedelta(days=1)
 
                 missing_candles = cb.get_asset_candles(self.client, trading_pair, Granularity.ONE_DAY, last_available_date, end_date)
                 for candle in missing_candles:

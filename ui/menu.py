@@ -94,7 +94,6 @@ class Menu:
         self.display_header(header)
 
         for result in data:
-            # formattedPred = f"{result['symbol']:<10} {result['start_date']:<15} {result['start_price']:<15.8f} {result['end_price']:<15.8f} {result['end_date']:<15} {result['close_price']:<15.8f}\n"
             formattedPred = f"{result.symbol:<10} {result.view_start_date():<15} {result.start_price:<15.8f} {result.end_price:<15.8f} {result.view_end_date():<15} {result.close_price:<15.8f}\n"
             self.stdscr.addstr(formattedPred)
 
@@ -247,7 +246,7 @@ class Menu:
 
     @menu_output
     @menu_exception_handler
-    def selectprediction(self, data: list[dict], use_model=False):
+    def selectprediction(self, data: list[Prediction]) -> Prediction:
         y, _ = self.stdscr.getyx()
         header = f"{'Symbol':<10} {'Start Date':<15} {'Start Price':<15} {'End Date':<15}\n"
         self.display_header(header)
@@ -258,12 +257,12 @@ class Menu:
             self.stdscr.move(y + 1, 0)
             self.stdscr.clrtobot()
             for i, pred in enumerate(data):
-                formatted_result = f"{pred['symbol']:<10} {pred['start_date']:<15} {pred['start_price']:<15.8f} {pred['end_date']:<15}\n"
+                formatted_pred = f"{pred.symbol:<10} {pred.view_start_date():<15} {pred.start_price:<15.8f} {pred.view_end_date():<15}\n"
                 # Highlight current choice (highlight in this case means reverse color pallet)
                 if i == choice:
-                    self.stdscr.addstr(formatted_result, curses.A_REVERSE)
+                    self.stdscr.addstr(formatted_pred, curses.A_REVERSE)
                 else:
-                    self.stdscr.addstr(formatted_result)
+                    self.stdscr.addstr(formatted_pred)
 
             try:
                 updated_choice = self.input_handler.get_choice(choice, results_count)
@@ -277,13 +276,10 @@ class Menu:
         self.stdscr.move(y, 0)
         self.stdscr.clrtobot()
 
-        if use_model:
-            return Prediction(data=data[choice])
-        else:
-            return data[choice]
+        return data[choice]
 
     @menu_exception_handler
-    def predictionoverview(self, prediction: dict):
+    def predictionoverview(self, prediction: Prediction, candles: list[dict]):
         # TODO: Refactor this to be more modular
         # TODO: Refactor this and add an option specifying which prediction to analyze
         # TODO: Refactor this and add a "carousel" for viewing multiple predictions by clicking [P]revious and [N]ext
@@ -292,20 +288,13 @@ class Menu:
         self.display_header(header)
 
         while True:
-            trading_pair = prediction["trading_pair"]
-            start_date = prediction["start_date"]
-            end_date = prediction["end_date"]
-            start_price = prediction["start_price"]
-            end_price = prediction["end_price"]
-            buy_price = prediction["buy_price"]
-            sell_price = prediction["sell_price"]
-            self.stdscr.addstr(f"{trading_pair:<15} {start_date:<15} {end_date:<15}\n")
+            self.stdscr.addstr(f"{prediction.trading_pair:<15} {prediction.view_start_date():<15} {prediction.view_end_date():<15}\n")
     
-            self.displaypricechart([])
+            self.displaypricechart(candles)
     
             price_header = f'{"START PRICE":<15} {"PRED. END PRICE":<20} {"BUY PRICE":<15} {"SELL PRICE":<15}\n'
             self.display_header(price_header)
-            self.stdscr.addstr(f'{start_price:<15.8f} {end_price:<20.8f} {buy_price:<15.8f} {sell_price:<15.8f}\n')
+            self.stdscr.addstr(f'{prediction.start_price:<15.8f} {prediction.end_price:<20.8f} {prediction.buy_price:<15.8f} {prediction.sell_price:<15.8f}\n')
     
             self.options = {
                 "select_prediction": "Select another Prediction",
