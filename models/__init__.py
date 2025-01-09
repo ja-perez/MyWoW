@@ -1,1 +1,2 @@
-from .prediction import Prediction, Portfolio
+from .prediction import Prediction
+from .portfolio import Portfolio
