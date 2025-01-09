@@ -19,12 +19,11 @@ class PredictionService:
 
         self.predictions_updated = False
 
-    def get_predictions(self, use_model=False) -> list[dict | Prediction]:
+    def get_predictions(self) -> list[dict | Prediction]:
+        # TODO: See ui/menu.py/Menu/selectprediction
         if self.db.table_exists('predictions'):
             results = self.db.get_rows('predictions', limit=10)
-            if use_model:
-                results = [Prediction(data=result_data) for result_data in results]
-            return results
+            return [Prediction(data=result_data) for result_data in results]
         else:
             file_data = utils.get_csv_data_from_file(self.prediction_data_path)
             data = []
@@ -41,12 +40,11 @@ class PredictionService:
                 })
             return data
 
-    def get_results(self, use_model=False) -> list[dict | Prediction]:
+    def get_results(self) -> list[dict | Prediction]:
+        # TODO: See ui/menu.py/Menu/selectprediction
         if self.db.table_exists('results'):
             results = self.db.get_rows('results', limit=10)
-            if use_model:
-                results = [Prediction(data=result_data) for result_data in results]
-            return results
+            return [Prediction(data=result_data) for result_data in results]
         else:
             file_data = utils.get_csv_data_from_file(self.prediction_results_path)
             data = []
@@ -147,7 +145,7 @@ class PredictionService:
 
     def get_candles(self, trading_pair: str, start_date: datetime.datetime, end_date: datetime.datetime) -> list[dict]:
         if self.db.table_exists('candles'):
-            days_timedelta = end_date - start_date
+            days_timedelta = min(end_date, datetime.datetime.today() - datetime.timedelta(days=1)) - start_date
             days = days_timedelta.days + 1
             where_conditions = self.db.build_where(
                 eq={
@@ -163,13 +161,8 @@ class PredictionService:
             candles = self.db.get_rows('candles', where_statement=where_conditions)
             
             if len(candles) < days:
-                last_available_date = start_date
-                for candle in candles:
-                    candle_datetime = datetime.datetime.strptime(candle['date'], '%Y-%m-%d')
-                    last_available_date = max(candle_datetime, last_available_date)
-
-                missing_candles = cb.get_asset_candles(self.client, trading_pair, Granularity.ONE_DAY, last_available_date, end_date)
-                for candle in missing_candles:
+                res = cb.get_asset_candles(self.client, trading_pair, Granularity.ONE_DAY, start_date, end_date)
+                for candle in res:
                     self.upload_candle(trading_pair, candle)
 
                 candles = self.db.get_rows('candles', where_statement=where_conditions)

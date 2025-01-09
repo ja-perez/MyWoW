@@ -124,7 +124,7 @@ class Controller:
             self.active_menu = None
 
     def handle_preds_action(self):
-        data = self.prediction_service.get_predictions(use_model=True)
+        data = self.prediction_service.get_predictions()
         if not data:
             raise MissingDataError
         res = self.active_menu.predictions(data)
@@ -133,7 +133,7 @@ class Controller:
             self.active_menu = self.menus[res]
 
     def handle_results_action(self):
-        data = self.prediction_service.get_results(use_model=True)
+        data = self.prediction_service.get_results()
         if not data:
             raise MissingDataError
         res = self.active_menu.results(data)
@@ -158,7 +158,7 @@ class Controller:
             raise QuitMenuError
 
     def handle_edit_pred_action(self):
-        data = self.prediction_service.get_predictions(use_model=True)
+        data = self.prediction_service.get_predictions()
         if not data:
             raise MissingDataError
 
@@ -181,7 +181,7 @@ class Controller:
             self.active_menu = self.menus['main']
 
     def handle_pred_overview_action(self):
-        data = self.prediction_service.get_predictions(use_model=True)
+        data = self.prediction_service.get_predictions()
         if not data:
             raise MissingDataError
 
@@ -197,22 +197,18 @@ class Controller:
                 break
 
     def handle_result_overview_action(self):
-        data = self.prediction_service.get_results(use_model=True)
+        data = self.prediction_service.get_results()
         if not data:
             raise MissingDataError
 
         while True:
-            results = self.active_menu.selectprediction(data)
-
-            trading_pair = results["trading_pair"]
-            start_date = datetime.datetime.strptime(results["start_date"], "%Y-%m-%d")
-            end_date = datetime.datetime.strptime(results["end_date"], "%Y-%m-%d")
-            candles = self.prediction_service.get_candles(trading_pair, start_date, end_date)
+            result = self.active_menu.selectprediction(data)
+            candles = self.prediction_service.get_candles(result.trading_pair, result.start_date, result.end_date)
 
             if not candles:
                 raise MissingDataError
 
-            res = self.active_menu.resultoverview(results, candles)
+            res = self.active_menu.resultoverview(result, candles)
 
             if res == "select_prediction":
                 continue

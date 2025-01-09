@@ -247,6 +247,7 @@ class Menu:
     @menu_output
     @menu_exception_handler
     def selectprediction(self, data: list[Prediction]) -> Prediction:
+        # TODO: Add menu option or special inputs for retrieving next 10 predictions, currently limit data retrieval to 10
         y, _ = self.stdscr.getyx()
         header = f"{'Symbol':<10} {'Start Date':<15} {'Start Price':<15} {'End Date':<15}\n"
         self.display_header(header)
@@ -313,7 +314,7 @@ class Menu:
         return choice
 
     @menu_exception_handler
-    def resultoverview(self, result: dict, candles: list[dict]):
+    def resultoverview(self, result: Prediction, candles: list[dict]):
         header = f'{"Symbol":<15} {"Start Date":<15} {"End Date":<15} {"Close Price":<15} {"High":<15} {"Low":<15}\n'
         self.display_header(header)
 
@@ -321,21 +322,13 @@ class Menu:
         low = candles[0]['range_low']
 
         while True:
-            trading_pair = result["trading_pair"]
-            start_date = result["start_date"]
-            end_date = result["end_date"]
-            start_price = result["start_price"]
-            end_price = result["end_price"]
-            buy_price = result["buy_price"]
-            sell_price = result["sell_price"]
-            close_price = result["close_price"]
-            self.stdscr.addstr(f"{trading_pair:<15} {start_date:<15} {end_date:<15} {close_price:<15.8f} {high:<15.8f} {low:<15.8f}\n")
+            self.stdscr.addstr(f"{result.trading_pair:<15} {result.view_start_date():<15} {result.view_end_date():<15} {result.close_price:<15.8f} {high:<15.8f} {low:<15.8f}\n")
     
             self.displaypricechart(candles)
     
             price_header = f'{"START PRICE":<15} {"PRED. END PRICE":<20} {"BUY PRICE":<15} {"SELL PRICE":<15}\n'
             self.display_header(price_header)
-            self.stdscr.addstr(f'{start_price:<15.8f} {end_price:<20.8f} {buy_price:<15.8f} {sell_price:<15.8f}\n')
+            self.stdscr.addstr(f'{result.start_price:<15.8f} {result.end_price:<20.8f} {result.buy_price:<15.8f} {result.sell_price:<15.8f}\n')
     
             self.options = {
                 "select_prediction": "Select another Prediction Result",
