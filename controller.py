@@ -145,7 +145,7 @@ class Controller:
         while True:
             prediction, choice = self.active_menu.addprediction()
             if prediction:
-                self.prediction_service.add_prediction(prediction)
+                self.prediction_service.add_prediction(prediction, use_model=True)
             
             if choice == 'new':
                 continue

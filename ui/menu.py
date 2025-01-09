@@ -2,6 +2,7 @@ import curses
 import datetime
 
 from inputhandling import InputHandler, QuitInputError, CancelInputError, RefreshInputError
+from models.prediction import Prediction
 
 class QuitMenuError(Exception):
     """Raised when user quits the program."""
@@ -88,12 +89,13 @@ class Menu:
         self.action()
 
     @menu_exception_handler
-    def results(self, data: list[dict]):
+    def results(self, data: list[Prediction]):
         header = f"{'Symbol':<10} {'Start Date':<15} {'Start Price':<15} {'End Price':<15} {'End Date':<15} {'Close Price':<15}\n"
         self.display_header(header)
 
-        for pred in data:
-            formattedPred = f"{pred['symbol']:<10} {pred['start_date']:<15} {pred['start_price']:<15.8f} {pred['end_price']:<15.8f} {pred['end_date']:<15} {pred['close_price']:<15.8f}\n"
+        for result in data:
+            # formattedPred = f"{result['symbol']:<10} {result['start_date']:<15} {result['start_price']:<15.8f} {result['end_price']:<15.8f} {result['end_date']:<15} {result['close_price']:<15.8f}\n"
+            formattedPred = f"{result.symbol:<10} {result.view_start_date():<15} {result.start_price:<15.8f} {result.end_price:<15.8f} {result.view_end_date():<15} {result.close_price:<15.8f}\n"
             self.stdscr.addstr(formattedPred)
 
         self.options = {
@@ -107,12 +109,12 @@ class Menu:
             raise QuitMenuError
 
     @menu_exception_handler
-    def predictions(self, data: list[dict]):
+    def predictions(self, data: list[Prediction]):
         header = f"{'Symbol':<10} {'Start Date':<15} {'Start Price':<15} {'End Price':<15} {'End Date':<15} {'Buy Price':<15} {'Sell Price':<15}\n"
         self.display_header(header)
 
-        for pred in data:
-            formattedPred = f"{pred['symbol']:<10} {pred['start_date']:<15} {pred['start_price']:<15.8f} {pred['end_price']:<15.8f} {pred['end_date']:<15} {pred['buy_price']:<15.8f} {pred['sell_price']:<15.8f}\n"
+        for prediction in data:
+            formattedPred = f"{prediction.symbol:<10} {prediction.view_start_date():<15} {prediction.start_price:<15.8f} {prediction.end_price:<15.8f} {prediction.view_end_date():<15} {prediction.buy_price:<15.8f} {prediction.sell_price:<15.8f}\n"
             self.stdscr.addstr(formattedPred)
 
         self.options = {
