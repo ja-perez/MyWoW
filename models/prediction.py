@@ -10,6 +10,7 @@ class InvalidDataError(Exception):
 
 class Prediction:
     def __init__(self,
+                 data: dict = None,
                  symbol: str = None,
                  trading_pair: str = None,
                  start_date: datetime.datetime = None,
@@ -18,9 +19,8 @@ class Prediction:
                  end_price: float = None,
                  buy_price: float = None,
                  sell_price: float = None,
-                 close_price: float = None,
-                 data: dict = None):
-
+                 close_price: float = None):
+        self.prediction_id = None
         self.symbol = symbol
         self.trading_pair = trading_pair
 
@@ -40,6 +40,8 @@ class Prediction:
             except MissingDataError:
                 raise
             except InvalidDataError:
+                raise
+            except TypeError:
                 raise
 
     def clear_data(self):
@@ -86,14 +88,19 @@ class Prediction:
             if not self.sell_price:
                 raise MissingDataError
 
+            self.close_price = self.close_price if self.close_price else data.get('close_price', 0)
+
            # type verification
             self.start_price = float(self.start_price)
             self.end_price = float(self.end_price)
             self.buy_price = float(self.buy_price)
             self.sell_price = float(self.sell_price)
+            self.close_price = float(self.close_price)
 
-            self.start_date = datetime.datetime.strptime(self.start_date, "%Y-%m-%d")
-            self.end_date = datetime.datetime.strptime(self.end_date, "%Y-%m-%d")
+            if type(self.start_date) == str:
+                self.start_date = datetime.datetime.strptime(self.start_date, "%Y-%m-%d")
+            if type(self.end_date) == str:
+                self.end_date = datetime.datetime.strptime(self.end_date, "%Y-%m-%d")
 
             # validity of value verification
             if self.start_price <= 0 or self.end_price <= 0:
@@ -102,6 +109,10 @@ class Prediction:
                 raise InvalidDataError 
             if self.end_date < self.start_date:
                 raise InvalidDataError 
+
+            self.prediction_id = f"{self.symbol}-{self.start_date.month}{self.start_date.day}{self.end_date.month}{self.end_date.day}-{self.start_date.year}"
+            if data.get('prediction_id', None) and data['prediction_id'] != self.prediction_id:
+                raise InvalidDataError
 
         except MissingDataError:
             self.clear_data()
@@ -113,9 +124,14 @@ class Prediction:
             self.clear_data()
             raise
 
-    def submit(self):
+    def view_start_date(self):
+        return self.start_date.strftime("%Y-%m-%d")
+    def view_end_date(self):
+        return self.end_date.strftime("%Y-%m-%d")
+
+    def get_values(self) -> list[str | float]:
         return [
-            f"{self.symbol}",
+            self.prediction_id,
             self.symbol,
             self.trading_pair,
             datetime.datetime.strftime(self.start_date, "%Y-%m-%d"),
