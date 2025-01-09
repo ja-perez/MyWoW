@@ -16,21 +16,27 @@ class PredictionService:
         self.prediction_data_path = utils.get_path_from_data_dir("dummy_data.csv")
         self.prediction_results_path = utils.get_path_from_data_dir("dummy_results.csv")
 
+        self.predictions_updated = False
+
     def get_predictions(self) -> list[dict]:
-        file_data = utils.get_csv_data_from_file(self.prediction_data_path)
-        data = []
-        for row in file_data:
-            data.append({
-                "symbol": row[0],
-                "trading_pair": row[1],
-                "start_date": row[2],
-                "end_date": row[3],
-                "start_price": float(row[4]),
-                "end_price": float(row[5]),
-                "buy_price": float(row[6]),
-                "sell_price": float(row[7])
-            })
-        return data
+        if self.db.table_exists('predictions'):
+            results = self.db.get_rows('predictions', limit=10)
+            return results
+        else:
+            file_data = utils.get_csv_data_from_file(self.prediction_data_path)
+            data = []
+            for row in file_data:
+                data.append({
+                    "symbol": row[0],
+                    "trading_pair": row[1],
+                    "start_date": row[2],
+                    "end_date": row[3],
+                    "start_price": float(row[4]),
+                    "end_price": float(row[5]),
+                    "buy_price": float(row[6]),
+                    "sell_price": float(row[7])
+                })
+            return data
 
     def get_results(self) -> list[dict]:
         if self.db.table_exists('results'):
@@ -49,51 +55,86 @@ class PredictionService:
                     "end_price": float(row[5]),
                     "buy_price": float(row[6]),
                     "sell_price": float(row[7]),
-                    "actual_end_price": float(row[8]),
+                    "close_price": float(row[8]),
                 })
             return data
 
     def update_predictions(self):
-        file_data = self.get_predictions()
+        if self.predictions_updated:
+            return
+
         todays_date = datetime.date.today()
+        if self.db.table_exists('predictions'):
+            predictions = self.db.get_rows(table_name='predictions', limit=-1)
+            for prediction_data in predictions:
+                end_date = datetime.datetime.strptime(prediction_data["end_date"], "%Y-%m-%d")
+                start_date = datetime.datetime.strptime(prediction_data["start_date"], "%Y-%m-%d")
+                if todays_date > end_date.date():
+                    candles: list[dict] = self.get_candles(prediction_data['trading_pair'], start_date, end_date)
+                    candles.sort(key=lambda x: x['date'], reverse=True)
+                    close_price = candles[0]['close']
+                    prediction_data['close_price'] = close_price
+                    self.add_result(prediction_data)
+                    self.remove_prediction(prediction_data['symbol'], prediction_data['start_date'])
+        else:
+            predictions = self.get_predictions()
+            new_data = []
+            for pred in predictions:
+                end_date = datetime.datetime.strptime(pred["end_date"], "%Y-%m-%d")
+                start_date = datetime.datetime.strptime(pred["start_date"], "%Y-%m-%d")
+                if todays_date > end_date.date():   # want to update preds day after end date
+                    trading_pair = pred["trading_pair"]
+                    candle = cb.get_asset_candles(self.client, trading_pair, Granularity.ONE_DAY, start_date, end_date) 
+                    pred_result = pred.copy()
+                    pred_result["close_price"] = float(candle[0]["close"])
+                    utils.add_data_to_csv_file(self.prediction_results_path, pred_result)
+                else:
+                    new_data.append(pred)
+            utils.write_many_data_to_csv_file(self.prediction_data_path, new_data)
 
-        new_data = []
-        for pred in file_data:
-            end_date = datetime.datetime.strptime(pred["end_date"], "%Y-%m-%d")
-            start_date = datetime.datetime.strptime(pred["start_date"], "%Y-%m-%d")
-            if todays_date > end_date.date():   # want to update preds day after end date
-                trading_pair = pred["trading_pair"]
-                candle = cb.get_asset_candles(self.client, trading_pair, Granularity.ONE_DAY, start_date, end_date) 
-                pred_result = pred.copy()
-                pred_result["actual_end_price"] = float(candle[0]["close"])
-                utils.add_data_to_csv_file(self.prediction_results_path, pred_result)
-            else:
-                new_data.append(pred)
-        utils.write_many_data_to_csv_file(self.prediction_data_path, new_data)
+        self.predictions_updated = True
 
-    def add_prediction(self, prediction: dict):
-        ordered_prediction = {
-            "symbol": prediction["symbol"],
-            "trading_pair": prediction["trading_pair"],
-            "start_date": prediction["start_date"],
-            "end_date": prediction["end_date"],
-            "start_price": prediction["start_price"],
-            "end_price": prediction["end_price"],
-            "buy_price": prediction["buy_price"],
-            "sell_price": prediction["sell_price"],
-        }
-        utils.add_data_to_csv_file(self.prediction_data_path, ordered_prediction)
+    def add_result(self, result_data: dict):
+        if self.db.table_exists('results'):
+            self.db.insert_one(table_name='results', values=result_data)
+
+    def add_prediction(self, prediction_data: dict):
+        if self.db.table_exists('predictions'):
+            symbol: str = prediction_data['symbol']
+            start_date: datetime.datetime = prediction_data['start_date']
+            end_date: datetime.datetime = prediction_data['end_date']
+            prediction_data['prediction_id'] = f'{symbol}-{start_date.month}{start_date.day}{end_date.month}{end_date.day}-{start_date.year}'
+            prediction_data['start_date'] = prediction_data["start_date"].strftime("%Y-%m-%d")
+            prediction_data['end_date'] = prediction_data["end_date"].strftime("%Y-%m-%d")
+            self.db.insert_one(table_name='predictions', values=prediction_data)
+        else:
+            ordered_prediction = {
+                "symbol": prediction_data["symbol"],
+                "trading_pair": prediction_data["trading_pair"],
+                "start_date": prediction_data["start_date"].strftime("%Y-%m-%d"),
+                "end_date": prediction_data["end_date"].strftime("%Y-%m-%d"),
+                "start_price": prediction_data["start_price"],
+                "end_price": prediction_data["end_price"],
+                "buy_price": prediction_data["buy_price"],
+                "sell_price": prediction_data["sell_price"],
+            }
+            utils.add_data_to_csv_file(self.prediction_data_path, ordered_prediction)
+
+        self.predictions_updated = False
 
     def remove_prediction(self, symbol: str, start_date: str):
-        file_data = self.get_predictions()
+        if self.db.table_exists('predictions'):
+            self.db.delete_where(table_name='predictions', values={'symbol':symbol, 'start_date':start_date})
+        else:
+            file_data = self.get_predictions()
 
-        new_data = []
-        for pred in file_data:
-            if pred["symbol"] == symbol and pred["start_date"] == start_date:
-                continue
-            new_data.append(pred)
+            new_data = []
+            for pred in file_data:
+                if pred["symbol"] == symbol and pred["start_date"] == start_date:
+                    continue
+                new_data.append(pred)
 
-        utils.write_many_data_to_csv_file(self.prediction_data_path, new_data)
+            utils.write_many_data_to_csv_file(self.prediction_data_path, new_data)
 
     def get_candles(self, trading_pair: str, start_date: datetime.datetime, end_date: datetime.datetime) -> list[dict]:
         if self.db.table_exists('candles'):
@@ -109,6 +150,7 @@ class PredictionService:
                         'max':f"'{datetime.datetime.strftime(end_date, "%Y-%m-%d")}'",
                     }
                 })
+
             candles = self.db.get_rows('candles', where_statement=where_conditions)
 
             if len(candles) < days:
@@ -118,9 +160,11 @@ class PredictionService:
                     last_available_date = max(candle_datetime, last_available_date)
                 last_available_date += datetime.timedelta(days=1)
 
-                candles = cb.get_asset_candles(self.client, trading_pair, Granularity.ONE_DAY, last_available_date, end_date)
-                for candle in candles:
+                missing_candles = cb.get_asset_candles(self.client, trading_pair, Granularity.ONE_DAY, last_available_date, end_date)
+                for candle in missing_candles:
                     self.upload_candle(trading_pair, candle)
+
+                candles = self.db.get_rows('candles', where_statement=where_conditions)
 
         else:
             output_filename = f'{start_date.strftime("%Y%m%d")}_{end_date.strftime("%Y%m%d")}_{trading_pair}_candles.json'
