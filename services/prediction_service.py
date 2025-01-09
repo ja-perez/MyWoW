@@ -7,6 +7,7 @@ from services.coinbase import Granularity
 from coinbase.rest import RESTClient
 from database import Database
 
+from models.prediction import Prediction
 
 class PredictionService:
     def __init__(self, client: RESTClient = None, db: Database = None):
@@ -18,9 +19,11 @@ class PredictionService:
 
         self.predictions_updated = False
 
-    def get_predictions(self) -> list[dict]:
+    def get_predictions(self, use_model=False) -> list[dict | Prediction]:
         if self.db.table_exists('predictions'):
             results = self.db.get_rows('predictions', limit=10)
+            if use_model:
+                results = [Prediction(data=result_data) for result_data in results]
             return results
         else:
             file_data = utils.get_csv_data_from_file(self.prediction_data_path)
@@ -38,9 +41,11 @@ class PredictionService:
                 })
             return data
 
-    def get_results(self) -> list[dict]:
+    def get_results(self, use_model=False) -> list[dict | Prediction]:
         if self.db.table_exists('results'):
             results = self.db.get_rows('results', limit=10)
+            if use_model:
+                results = [Prediction(data=result_data) for result_data in results]
             return results
         else:
             file_data = utils.get_csv_data_from_file(self.prediction_results_path)
@@ -98,15 +103,19 @@ class PredictionService:
         if self.db.table_exists('results'):
             self.db.insert_one(table_name='results', values=result_data)
 
-    def add_prediction(self, prediction_data: dict):
+    def add_prediction(self, prediction_data: dict, use_model=False):
         if self.db.table_exists('predictions'):
-            symbol: str = prediction_data['symbol']
-            start_date: datetime.datetime = prediction_data['start_date']
-            end_date: datetime.datetime = prediction_data['end_date']
-            prediction_data['prediction_id'] = f'{symbol}-{start_date.month}{start_date.day}{end_date.month}{end_date.day}-{start_date.year}'
-            prediction_data['start_date'] = prediction_data["start_date"].strftime("%Y-%m-%d")
-            prediction_data['end_date'] = prediction_data["end_date"].strftime("%Y-%m-%d")
-            self.db.insert_one(table_name='predictions', values=prediction_data)
+            if use_model:
+                prediction = Prediction(data=prediction_data)
+                self.db.insert_one(table_name='predictions', values=prediction.get_values())
+            else:
+                symbol: str = prediction_data['symbol']
+                start_date: datetime.datetime = prediction_data['start_date']
+                end_date: datetime.datetime = prediction_data['end_date']
+                prediction_data['prediction_id'] = f'{symbol}-{start_date.month}{start_date.day}{end_date.month}{end_date.day}-{start_date.year}'
+                prediction_data['start_date'] = prediction_data["start_date"].strftime("%Y-%m-%d")
+                prediction_data['end_date'] = prediction_data["end_date"].strftime("%Y-%m-%d")
+                self.db.insert_one(table_name='predictions', values=prediction_data)
         else:
             ordered_prediction = {
                 "symbol": prediction_data["symbol"],

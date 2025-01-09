@@ -124,7 +124,7 @@ class Controller:
             self.active_menu = None
 
     def handle_preds_action(self):
-        data = self.prediction_service.get_predictions()
+        data = self.prediction_service.get_predictions(use_model=True)
         if not data:
             raise MissingDataError
         res = self.active_menu.predictions(data)
@@ -133,7 +133,7 @@ class Controller:
             self.active_menu = self.menus[res]
 
     def handle_results_action(self):
-        data = self.prediction_service.get_results()
+        data = self.prediction_service.get_results(use_model=True)
         if not data:
             raise MissingDataError
         res = self.active_menu.results(data)
