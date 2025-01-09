@@ -112,9 +112,14 @@ class Database:
         return updated_values
 
     @check_table
-    def insert_one(self, values: list, table_name: str = None):
+    def insert_one(self, values: list | dict, table_name: str = None):
         if not values:
             raise InvalidInsertError
+        if type(values) == dict:
+            table_schema = self.get_row_schema(table_name)
+            for key in table_schema:
+                table_schema[key] = values[key]
+            values = [table_schema[key] for key in table_schema]
 
         formatted_values = []
         for val in values:
@@ -202,14 +207,18 @@ class Database:
         rows = res.fetchall()
         return [self.format_row(row=row, table_name=table_name, headers=headers) for row in rows]
 
+    @check_table
+    def get_row_schema(self, table_name: str = None) -> dict[str: None]:
+        table_schema = self.get_table_schema(table_name=table_name)
+        return {
+            key: None for key in table_schema
+        }
+
+    @check_table
     def get_table_schema(self, table_name: str = None) -> dict[str:str]:
         """
         return_value: { col_name : col_type, ... }
         """
-        table_name = table_name if table_name else self.table_name
-        if not table_name or not self.table_exists(table_name):
-            raise InvalidTableNameError
-
         query = f"PRAGMA table_info({table_name})"
         self.cur.execute(query)
         res = self.cur.fetchall()
@@ -242,7 +251,7 @@ class Database:
             col_type = schema[col_name]
             if col_type == "TEXT":
                 formatted_row[col_name] = row[i]
-            if col_type == "REAL":
+            if col_type == "REAL" or col_type == "FLOAT":
                 formatted_row[col_name] = float(row[i])
             if col_type == "INT":
                 formatted_row[col_name] = int(row[i])
@@ -250,6 +259,105 @@ class Database:
                 formatted_row[col_name] = row[i]
 
         return formatted_row
+
+def get_predictions_data():
+    predictions_data_path = path.join(data_dir, "dummy_data.csv")
+    predictions_data = []
+    with open(predictions_data_path, 'r') as f:
+        for line in f:
+            predictions_data.append(line.strip().split(','))
+
+    data = []
+    for row in predictions_data:
+        symbol: str = row[0]
+        trading_pair = row[1]
+        start_date = datetime.datetime.strptime(row[2], "%Y-%m-%d")
+        end_date = datetime.datetime.strptime(row[3], "%Y-%m-%d")
+        start_price = float(row[4])
+        end_price = float(row[5])
+        buy_price = float(row[6])
+        sell_price = float(row[7])
+
+        prediction_id = f"{symbol.upper()}-{start_date.month}{start_date.day}{end_date.month}{end_date.day}-{start_date.year}"
+
+        data.append([
+            prediction_id,
+            symbol,
+            trading_pair,
+            datetime.datetime.strftime(start_date, "%Y-%m-%d"),
+            datetime.datetime.strftime(end_date, "%Y-%m-%d"),
+            start_price,
+            end_price,
+            buy_price,
+            sell_price,
+        ])
+    return data
+
+def predictions_setup(db: Database):
+    try:
+        # Setting up predictions table
+        predictions_def = {
+            # [symbol]-[start_month][start_day][end_month][end_day]-[start_year]
+            # SHIB-12151218-2024, GTC-12151218-2024
+            "prediction_id": "TEXT PRIMARY KEY UNIQUE",
+            "symbol": "TEXT",
+            "trading_pair": "TEXT",
+            "start_date": "DATE",
+            "end_date": "DATE",
+            "start_price": "REAL",
+            "end_price": "REAL",
+            "buy_price": "REAL",
+            "sell_price": "REAL",
+        }
+        db.create_table(table_name="predictions", values=predictions_def)
+        db.set_table(table_name="predictions")
+
+        # Seeding db with data currently in csv file "dummy_predictions"
+        predictions_data = get_predictions_data()
+        for data in predictions_data:
+            db.insert_one(data)
+
+    except InvalidTableNameError:
+        raise
+    except InvalidInsertError:
+        raise
+    except InvalidValuesError:
+        raise
+
+def get_results_data():
+    results_data_path = path.join(data_dir, "dummy_results.csv")
+    results_data = []
+    with open(results_data_path, 'r') as f:
+        for line in f:
+            results_data.append(line.strip().split(','))
+
+    data = []
+    for row in results_data:
+        symbol: str = row[0]
+        trading_pair = row[1]
+        start_date = datetime.datetime.strptime(row[2], "%Y-%m-%d")
+        end_date = datetime.datetime.strptime(row[3], "%Y-%m-%d")
+        start_price = float(row[4])
+        end_price = float(row[5])
+        buy_price = float(row[6])
+        sell_price = float(row[7])
+        close_price = float(row[8])
+
+        prediction_id = f"{symbol.upper()}-{start_date.month}{start_date.day}{end_date.month}{end_date.day}-{start_date.year}"
+
+        data.append([
+            prediction_id,
+            symbol,
+            trading_pair,
+            datetime.datetime.strftime(start_date, "%Y-%m-%d"),
+            datetime.datetime.strftime(end_date, "%Y-%m-%d"),
+            start_price,
+            end_price,
+            buy_price,
+            sell_price,
+            close_price
+        ])
+    return data
 
 def results_setup(db: Database):
     try:
@@ -266,43 +374,19 @@ def results_setup(db: Database):
             "end_price": "REAL",
             "buy_price": "REAL",
             "sell_price": "REAL",
-            "actual_end_price": "REAL",
+            "close_price": "REAL",
         }
-        db.create_table("results", results_def)
-        db.set_table("results")
+        db.create_table(table_name="results", values=results_def)
+        db.set_table(table_name="results")
 
+        data_copy = db.get_rows(table_name='temp_results', limit=-1)
+        for data in data_copy:
+            db.insert_one(values=data)
+        
         # Seeding db with data currently in csv file "dummy_results"
-        results_data_path = path.join(data_dir, "dummy_results.csv")
-        results_data = []
-        with open(results_data_path, 'r') as f:
-            for line in f:
-                results_data.append(line.strip().split(','))
-        for row in results_data:
-            symbol: str = row[0]
-            trading_pair = row[1]
-            start_date = datetime.datetime.strptime(row[2], "%Y-%m-%d")
-            end_date = datetime.datetime.strptime(row[3], "%Y-%m-%d")
-            start_price = float(row[4])
-            end_price = float(row[5])
-            buy_price = float(row[6])
-            sell_price = float(row[7])
-            actual_end_price = float(row[8])
-
-            prediction_id = f"{symbol.upper()}-{start_date.month}{start_date.day}{end_date.month}{end_date.day}-{start_date.year}"
-
-            insert_data = [
-                prediction_id,
-                symbol,
-                trading_pair,
-                datetime.datetime.strftime(start_date, "%Y-%m-%d"),
-                datetime.datetime.strftime(end_date, "%Y-%m-%d"),
-                start_price,
-                end_price,
-                buy_price,
-                sell_price,
-                actual_end_price
-            ]
-            db.insert_one(insert_data)
+        # results_data = get_results_data()
+        # for data in results_data:
+        #     db.insert_one(data)
 
     except InvalidTableNameError:
         raise
@@ -373,6 +457,7 @@ def MyWoWSetup():
     db = Database(db_name="mywow.db")
 
     try:
+        # predictions_setup(db)
         # results_setup(db)
         # candles_setup(db)
         pass
