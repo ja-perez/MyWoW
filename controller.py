@@ -28,8 +28,8 @@ class Controller:
 
         self.input_handler = InputHandler(stdscr)
         client = cb.get_client()
-        db = Database('mywow.db')
-        self.prediction_service = PredictionService(client, db)
+        self.db = Database('mywow.db')
+        self.prediction_service = PredictionService(client, self.db)
 
         self.setup_menus()
         self.load_state()
@@ -71,9 +71,10 @@ class Controller:
             except QuitMenuError:
                 self.on_exit()
                 self.active_menu = None
+            except CancelMenuError:
+                self.active_menu = self.menus['main']
             except MissingDataError:
                 self.handle_data_error()
-
 
     def load_state(self):
         file_path = utils.get_path_from_data_dir("state.json")
@@ -94,8 +95,9 @@ class Controller:
         }
         if self.active_menu:
             state["active_menu"] = next(key for key, val in self.menus.items() if val == self.active_menu)
-
         utils.write_dict_data_to_file(utils.get_path_from_data_dir("state.json"), state)
+
+        self.db.on_exit()
 
     def handle_mainmenu_action(self):
         choice = self.active_menu.display_options()
@@ -110,8 +112,10 @@ class Controller:
         if choice == "edit_pred":
             self.active_menu = self.menus[choice]
         if choice == "pred_overview":
+            self.prediction_service.update_predictions()
             self.active_menu = self.menus[choice]
         if choice == "result_overview":
+            self.prediction_service.update_predictions()
             self.active_menu = self.menus[choice]
         if choice == "test":
             self.active_menu = self.menus[choice]
@@ -138,13 +142,20 @@ class Controller:
             self.active_menu = self.menus[res]
 
     def handle_add_pred_action(self):
-        pred = self.active_menu.addprediction()
-
-        if pred:
-            self.prediction_service.add_prediction(pred)
-            self.active_menu = self.menus["main"]
-        else:
-            self.active_menu = self.menus["main"]
+        while True:
+            prediction, choice = self.active_menu.addprediction()
+            if prediction:
+                self.prediction_service.add_prediction(prediction)
+            
+            if choice == 'new':
+                continue
+            else:
+                break
+            
+        if choice in self.menus:
+            self.active_menu = self.menus[choice]
+        if choice == 'quit':
+            raise QuitMenuError
 
     def handle_edit_pred_action(self):
         data = self.prediction_service.get_predictions()
@@ -174,6 +185,7 @@ class Controller:
                 continue
             if res in self.menus:
                 self.active_menu = self.menus[res]
+                break
 
     def handle_result_overview_action(self):
         data = self.prediction_service.get_results()
