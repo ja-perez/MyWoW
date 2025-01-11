@@ -1,8 +1,10 @@
 import curses
 import datetime
+from typing import Callable, Optional, Any, Self
 
 from inputhandling import InputHandler, QuitInputError, CancelInputError, RefreshInputError
 from models.prediction import Prediction
+from models.portfolio import Portfolio
 
 class QuitMenuError(Exception):
     """Raised when user quits the program."""
@@ -16,18 +18,18 @@ class RefreshMenuError(Exception):
     """Raised when the menu is refreshed"""
 
 class Menu:
-    def __init__(self, title: str, options: dict = None, stdscr: curses.window = None, action: callable = None, input_handler: InputHandler = None):
+    def __init__(self, title: str, stdscr: curses.window, action: Optional[Callable] = None, input_handler: Optional[InputHandler] = None, options: Optional[dict] = None):
         self.title = title
-        self.options = options
         self.stdscr = stdscr
         self.action = action
-        self.input_handler = input_handler
+        self.input_handler = input_handler if input_handler else InputHandler(stdscr)
+        self.options = options if options else {}
         self.has_options = True if options else False
 
         if not stdscr:
             raise Exception("stdscr cannot be None")
 
-    def menu_output(func):
+    def menu_output(func: Any):
         def wrapper(self, *args, **kwargs):
             self.stdscr.clear()
             menu_title = ' '.join([self.title, '(press q to quit program, enter c to cancel input)', '\n\n'])
@@ -38,7 +40,7 @@ class Menu:
             return func(self, *args, **kwargs)
         return wrapper
 
-    def menu_exception_handler(func):
+    def menu_exception_handler(func: Any):
         def wrapper(*args, **kwargs):
             try:
                 return func(*args, **kwargs)
@@ -345,6 +347,9 @@ class Menu:
                 raise QuitMenuError
 
         return choice
+
+    def portfoliosummary(self, portfolio: Portfolio):
+        pass
 
     @menu_output
     @menu_exception_handler

@@ -3,7 +3,7 @@ import datetime
 
 import utils
 from ui import Menu, QuitMenuError, CancelMenuError
-from services import PredictionService
+from services import PredictionService, PortfolioService
 from database import Database
 import services.coinbase as cb
 from inputhandling import InputHandler
@@ -14,7 +14,7 @@ class MissingDataError(Exception):
 class Controller:
     def __init__(self, stdscr: curses.window):
         self.stdscr = stdscr
-        self.state = {} # For saving and restoring state information (active menu, data, etc.)
+        self.state: dict = {} # For saving and restoring state information (active menu, data, etc.)
 
         self.active_menu = None
         self.menus = {
@@ -30,6 +30,7 @@ class Controller:
         client = cb.get_client()
         self.db = Database('mywow.db')
         self.prediction_service = PredictionService(client, self.db)
+        self.portfolio_service = PortfolioService(client, self.db)
 
         self.setup_menus()
         self.load_state()
@@ -42,10 +43,12 @@ class Controller:
             "edit_pred": "Edit Prediction",
             "pred_overview": "Prediction Overview",
             "result_overview": "Result Overview",
+            "portfolio": "Portfolio",
             "test": "Test Functionality",
             "quit": "Quit"
         }
-        self.menus["main"] = Menu("Main Menu", mainmenu_options, self.stdscr, self.handle_mainmenu_action, input_handler=self.input_handler)
+
+        self.menus["main"] = Menu("Main Menu", options=mainmenu_options, stdscr=self.stdscr, action=self.handle_mainmenu_action, input_handler=self.input_handler)
 
         self.menus["preds"] = Menu("Current Predictions", stdscr=self.stdscr, action=self.handle_preds_action, input_handler=self.input_handler)
 
@@ -58,6 +61,8 @@ class Controller:
         self.menus["pred_overview"] = Menu("Prediction Overview", stdscr=self.stdscr, action=self.handle_pred_overview_action, input_handler=self.input_handler)
 
         self.menus["result_overview"] = Menu("Result Overview", stdscr=self.stdscr, action=self.handle_result_overview_action, input_handler=self.input_handler)
+
+        self.menus["portfolio"] = Menu("Portfolio", stdscr=self.stdscr, action=self.handle_portfolio_action, input_handler=self.input_handler)
 
         self.menus["test"] = Menu("Test Menu", stdscr=self.stdscr, action=self.handle_test_action, input_handler=self.input_handler)
 
@@ -216,12 +221,17 @@ class Controller:
                 self.active_menu = self.menus[res]
                 break
 
+    def handle_portfolio_action(self):
+        data = self.portfolio_service.get_portfolio()
+
+    def handle_test_action(self):
+        # if res in self.menus:
+        #     self.active_menu = self.menus[res]
+        self.active_menu = self.menus["main"]
+
     def handle_data_error(self):
         res = self.active_menu.display_data_error()
         if res in self.menus:
             self.active_menu = self.menus[res]
         else:
             self.active_menu = self.menus["main"]
-
-    def handle_test_action(self):
-        self.active_menu = self.menus["main"]
