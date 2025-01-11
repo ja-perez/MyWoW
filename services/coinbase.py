@@ -1,4 +1,5 @@
-from coinbase.rest import RESTClient
+from coinbase.rest import RESTClient # type: ignore
+from coinbase.wallet.client import Client # type: ignore
 from dotenv import dotenv_values
 import utils
 import datetime
@@ -28,6 +29,15 @@ def get_client(dotenv_path: str = ".env") -> RESTClient:
     client = RESTClient(api_key=coinbaseAPIKey, api_secret=coinbaseAPISecret)
     return client
 
+def get_wallet_client(dotenv_path: str = ".env") -> Client:
+    # Load environment variables
+    config = dotenv_values(dotenv_path)
+    coinbaseAPIKey = config["COINBASE_API_KEY"]
+    coinbaseAPISecret = config["COINBASE_API_SECRET"]
+
+    client = Client(api_key=coinbaseAPIKey, api_secret=coinbaseAPISecret)
+    return client
+
 def get_default_portfolio(client: RESTClient):
     portfolios_response = client.get_portfolios()
     portfolios = portfolios_response.to_dict()["portfolios"]
@@ -42,7 +52,7 @@ def get_default_portfolio(client: RESTClient):
             default_portfolio = portfolio_bd
     return default_portfolio
  
-def get_asset_candles(client: RESTClient, product_id: str, granularity: str, start: datetime.datetime, end: datetime.datetime, limit: int = None):
+def get_asset_candles(client: RESTClient, product_id: str, granularity: str, start: datetime.datetime, end: datetime.datetime, limit: int | None = None):
     start_unix = str(int(start.timestamp()))
     end_adjusted = end + datetime.timedelta(days=1)
     end_unix = str(int(end_adjusted.timestamp()))

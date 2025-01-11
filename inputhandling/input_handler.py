@@ -1,5 +1,6 @@
 import curses
 import datetime
+from typing import Any
 
 class InvalidInputError(Exception):
     """Raised when input is invalid."""
@@ -25,7 +26,7 @@ class InputHandler:
     def __init__(self, stdscr: curses.window):
         self.stdscr = stdscr
 
-    def input_from_user(func):
+    def input_from_user(func: Any):
         def wrapper(*args, **kwargs):
             curses.curs_set(1)
             curses.echo()
@@ -56,7 +57,7 @@ class InputHandler:
                   validation = None,
                   can_refresh = False):
         err_flag = False
-        return_val = None
+        return_val: Any = None
 
         # Input prompt
         output = f"{prompt} "
@@ -69,7 +70,7 @@ class InputHandler:
         y, x = self.stdscr.getyx()
         while True:
             try:
-                user_input = self.stdscr.getstr().decode("utf-8").lower()
+                user_input: str = self.stdscr.getstr().decode("utf-8").lower()
 
                 # Default
                 if not user_input and default:
@@ -88,16 +89,15 @@ class InputHandler:
                     raise RefreshInputError
 
                 if input_type == int:
-                    user_input = int(user_input)
+                    return_val = int(user_input)
                 elif input_type == float:
-                    user_input = float(user_input)
+                    return_val = float(user_input)
                 elif input_type == datetime.datetime:
-                    user_input = datetime.datetime.strptime(user_input, "%Y-%m-%d")
+                    return_val = datetime.datetime.strptime(user_input, "%Y-%m-%d")
 
-                if validation and not validation(user_input):
+                if validation and not validation(return_val):
                     raise ValidateInputError("Validation failed")
                 
-                return_val = user_input
                 break
 
             except ValueError as e:
