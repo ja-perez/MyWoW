@@ -1,7 +1,8 @@
 import sqlite3
 import datetime
-from os import path, getcwd, listdir
 import json
+from typing import Any, Optional
+from os import path, getcwd, listdir
 
 data_dir = path.join(getcwd(), 'data')
 
@@ -20,7 +21,7 @@ class Database:
         self.conn = sqlite3.connect(db_name)
 
         self.cur = self.conn.cursor()
-        self.table_name = None
+        self.table_name = ''
     
     def on_exit(self):
         print(f"Closing connection to database {self.db_name}...")
@@ -38,7 +39,7 @@ class Database:
         else:
             return False
 
-    def check_table(func):
+    def check_table(func: Any):
         def wrapper(self, *args, **kwargs):
             if args:
                 for arg in args:
@@ -77,10 +78,10 @@ class Database:
             else:
                 values[key] = val.upper()
 
-        definition = [
+        definitions = [
             " ".join([key, values[key]]) for key in values
         ]
-        definition = ", ".join(definition)
+        definition = ", ".join(definitions)
         query = f"CREATE TABLE {table_name}({definition})"
         self.cur.execute(query)
 
@@ -112,7 +113,7 @@ class Database:
         return updated_values
 
     @check_table
-    def insert_one(self, values: list | dict, table_name: str = None):
+    def insert_one(self, values: list | dict, table_name: Optional[str] = None):
         if not values:
             raise InvalidInsertError
         if type(values) == dict:
@@ -136,7 +137,7 @@ class Database:
         self.conn.commit()
 
     @check_table
-    def update_where(self, updated_values: dict, where_values: dict, table_name: str = None):
+    def update_where(self, updated_values: dict, where_values: dict, table_name: Optional[str] = None):
         if not updated_values or not where_values:
             raise InvalidValuesError
 
@@ -148,7 +149,7 @@ class Database:
         self.conn.commit()
 
     @check_table
-    def delete_where(self, values: dict, table_name: str = None):
+    def delete_where(self, values: dict, table_name: Optional[str] = None):
         if not values:
             raise InvalidInsertError
 
@@ -194,7 +195,7 @@ class Database:
         return f"WHERE {' AND '.join(where_conditions)}"
 
     @check_table
-    def get_rows(self, table_name: str = None, limit: int = 20, where_statement: str = '', headers: list[str] = None) -> list[dict[str: str | float | int | datetime.datetime]]:
+    def get_rows(self, table_name: Optional[str] = None, limit: int = 20, where_statement: str = '', headers: Optional[list[str]] = None) -> list[ dict[ str, str | float | int | datetime.datetime ] ]:
         if headers:
             header_query = ', '.join(headers)
         else:
@@ -208,14 +209,14 @@ class Database:
         return [self.format_row(row=row, table_name=table_name, headers=headers) for row in rows]
 
     @check_table
-    def get_row_schema(self, table_name: str = None) -> dict[str: None]:
+    def get_row_schema(self, table_name: Optional[str] = None) -> dict[str, None]:
         table_schema = self.get_table_schema(table_name=table_name)
         return {
             key: None for key in table_schema
         }
 
     @check_table
-    def get_table_schema(self, table_name: str = None) -> dict[str:str]:
+    def get_table_schema(self, table_name: Optional[str] = None) -> dict[str, str]:
         """
         return_value: { col_name : col_type, ... }
         """
@@ -228,15 +229,16 @@ class Database:
         return schema
 
     @check_table
-    def get_table_primary_key(self, table_name: str = None) -> list[int, str]:
+    def get_table_primary_key(self, table_name: Optional[str] = None) -> list[int | str]:
         query = self.cur.execute(f"PRAGMA table_info({table_name})")
         table_info = query.fetchall()
         for col_info in table_info:
             if col_info[-1] == 1:
                 return col_info[:2]
+        return [-1, '']
 
     @check_table
-    def format_row(self, row: list[str], table_name: str = None, headers: list[str] = None) -> dict[str: str | float | int | datetime.datetime]:
+    def format_row(self, row: list[str], table_name: Optional[str] = None, headers: Optional[list[str]] = None) -> dict[ str, str | float | int | datetime.datetime]:
         """
         return_value: [ col_value, ... ]
         """
@@ -246,7 +248,7 @@ class Database:
         else:
             headers = [ header for header in schema ]
 
-        formatted_row = {}
+        formatted_row: dict[str, str | float | int | datetime.datetime] = {}
         for i, col_name in enumerate(headers):
             col_type = schema[col_name]
             if col_type == "TEXT":

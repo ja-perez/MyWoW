@@ -1,4 +1,5 @@
 import datetime
+from typing import Optional
 
 class MissingDataError(Exception):
     """Raised when a prediction object is initialized missing key data"""
@@ -10,29 +11,31 @@ class InvalidDataError(Exception):
 
 class Prediction:
     def __init__(self,
-                 data: dict = None,
-                 symbol: str = None,
-                 trading_pair: str = None,
-                 start_date: datetime.datetime = None,
-                 end_date: datetime.datetime = None,
-                 start_price: float = None,
-                 end_price: float = None,
-                 buy_price: float = None,
-                 sell_price: float = None,
-                 close_price: float = None):
-        self.prediction_id = None
-        self.symbol = symbol
-        self.trading_pair = trading_pair
+                 data: Optional[dict] = None,
+                 symbol: Optional[str] = None,
+                 trading_pair: Optional[str] = None,
+                 start_date: Optional[datetime.datetime] = None,
+                 end_date: Optional[datetime.datetime] = None,
+                 start_price: Optional[float] = None,
+                 end_price: Optional[float] = None,
+                 buy_price: Optional[float] = None,
+                 sell_price: Optional[float] = None,
+                 close_price: Optional[float] = None):
+        self.data = data if data else {}
+        self.symbol = symbol if symbol else self.data.get('symbol', '')
+        self.trading_pair = trading_pair if trading_pair else self.data.get('trading_pair', '')
 
-        self.start_date = start_date
-        self.end_date = end_date
+        self.start_date = start_date if start_date else self.data.get('start_date', None)
+        self.end_date = end_date if end_date else self.data.get('end_date', None)
 
-        self.start_price = start_price
-        self.end_price = end_price
-        self.close_price = close_price
+        self.start_price = start_price if start_price else self.data.get('start_price', 0)
+        self.end_price = end_price if end_price else self.data.get('end_price', 0)
+        self.close_price = close_price if close_price else self.data.get('close_price', 0)
 
-        self.buy_price = buy_price
-        self.sell_price = sell_price
+        self.buy_price = buy_price if buy_price else self.data.get('buy_price', 0)
+        self.sell_price = sell_price if sell_price else self.data.get('buy_price', 0)
+
+        self.prediction_id = ""
 
         if data:
             try:
@@ -124,19 +127,23 @@ class Prediction:
             self.clear_data()
             raise
 
-    def view_start_date(self):
-        return self.start_date.strftime("%Y-%m-%d")
+    def view_start_date(self) -> str:
+        if type(self.start_date) == datetime.datetime:
+            return self.start_date.strftime("%Y-%m-%d")
+        return "XXXX-XX-XX"
 
-    def view_end_date(self):
-        return self.end_date.strftime("%Y-%m-%d")
+    def view_end_date(self) -> str:
+        if type(self.end_date) == datetime.datetime:
+            return self.end_date.strftime("%Y-%m-%d")
+        return "XXXX-XX-XX"
 
     def get_values(self) -> list[str | float]:
         return [
             self.prediction_id,
             self.symbol,
             self.trading_pair,
-            datetime.datetime.strftime(self.start_date, "%Y-%m-%d"),
-            datetime.datetime.strftime(self.end_date, "%Y-%m-%d"),
+            self.view_start_date(),
+            self.view_end_date(),
             self.start_price,
             self.end_price,
             self.buy_price,
@@ -155,9 +162,3 @@ class Prediction:
             'sell_price': str(self.sell_price),
             'close_price': str(self.close_price)
         }
-
-class Result(Prediction):
-    def __init__(self, data: dict = None):
-        super.__init__(data)
-
-        self.close_price = 0

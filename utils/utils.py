@@ -88,13 +88,13 @@ def write_many_data_to_csv_file(file_path: str, data: list[dict]) -> None:
     try:
         clear_file(file_path)
         for line in data:
-            add_data_to_csv_file(file_path, line)
+            add_dict_to_csv_file(file_path, line)
         print("Successfully wrote data to file: " + file_path)
     except Exception as e:
         print("Failed to write data to file: " + file_path)
         print("Error:\n", e)
 
-def add_data_to_csv_file(file_path: str, data: dict) -> None:
+def add_dict_to_csv_file(file_path: str, data: dict) -> None:
     print("Adding data to file path: " + file_path)
     try:
         data_vals = [str(val) for val in data.values()]
@@ -114,6 +114,7 @@ def get_dict_data_from_file(file_path: str) -> dict:
     except Exception as e:
         print("Failed to read data from file: " + file_path)
         print("Error:\n", e)
+        return {}
 
 def get_csv_data_from_file(file_path: str) -> list:
     print("Reading data from file path: " + file_path)

@@ -1,16 +1,17 @@
 import datetime
 import os
+from typing import Any
 
 import utils
 import services.coinbase as cb
 from services.coinbase import Granularity
-from coinbase.rest import RESTClient
+from coinbase.rest import RESTClient # type: ignore
 from database import Database
 
 from models.prediction import Prediction
 
 class PredictionService:
-    def __init__(self, client: RESTClient = None, db: Database = None):
+    def __init__(self, client: RESTClient = None, db: Database | None = None):
         self.client = client if client else cb.get_client()
         self.db = db if db else Database()
         
@@ -19,7 +20,7 @@ class PredictionService:
 
         self.predictions_updated = False
 
-    def get_predictions(self, to_json=False) -> list[dict | Prediction]:
+    def get_predictions(self, to_json=False) -> list[dict] | list[Prediction]:
         # TODO: See ui/menu.py/Menu/selectprediction
         if self.db.table_exists('predictions'):
             res = self.db.get_rows('predictions', limit=10)
@@ -45,11 +46,11 @@ class PredictionService:
                 })
             return data
 
-    def get_results(self, to_json=False) -> list[dict | Prediction]:
+    def get_results(self, to_json=False) -> list[Prediction] | list[dict]:
         # TODO: See ui/menu.py/Menu/selectprediction
         if self.db.table_exists('results'):
             res = self.db.get_rows('results', limit=10)
-            results = [Prediction(data=result_data) for result_data in res]
+            results: list[Prediction] = [Prediction(data=result_data) for result_data in res]
 
             if to_json:
                 return [result.to_json() for result in results]
@@ -78,17 +79,17 @@ class PredictionService:
 
         todays_date = datetime.date.today()
         if self.db.table_exists('predictions'):
-            predictions = self.db.get_rows(table_name='predictions', limit=-1)
-            for prediction_data in predictions:
-                end_date = datetime.datetime.strptime(prediction_data["end_date"], "%Y-%m-%d")
-                start_date = datetime.datetime.strptime(prediction_data["start_date"], "%Y-%m-%d")
+            predictions = [Prediction(data=pred_data) for pred_data in self.db.get_rows(table_name='predictions', limit=-1)]
+            for prediction in predictions:
+                end_date = prediction.end_date
+                start_date = prediction.start_date
                 if todays_date > end_date.date():
-                    candles: list[dict] = self.get_candles(prediction_data['trading_pair'], start_date, end_date)
+                    candles: list[dict] = self.get_candles(prediction['trading_pair'], start_date, end_date)
                     candles.sort(key=lambda x: x['date'], reverse=True)
                     close_price = candles[0]['close']
-                    prediction_data['close_price'] = close_price
-                    self.add_result(prediction_data)
-                    self.remove_prediction(prediction_data['symbol'], prediction_data['start_date'])
+                    prediction['close_price'] = close_price
+                    self.add_result(prediction)
+                    self.remove_prediction(prediction['symbol'], prediction['start_date'])
         else:
             predictions = self.get_predictions()
             new_data = []
@@ -135,7 +136,7 @@ class PredictionService:
                 "buy_price": prediction_data["buy_price"],
                 "sell_price": prediction_data["sell_price"],
             }
-            utils.add_data_to_csv_file(self.prediction_data_path, ordered_prediction)
+            utils.add_dict_to_csv_file(self.prediction_data_path, ordered_prediction)
 
         self.predictions_updated = False
 
@@ -143,7 +144,7 @@ class PredictionService:
         if self.db.table_exists('predictions'):
             self.db.delete_where(table_name='predictions', values={'symbol':prediction.symbol, 'start_date':prediction.view_start_date()})
         else:
-            file_data = self.get_predictions()
+            file_data: Any = self.get_predictions()
 
             new_data = []
             for pred in file_data:
