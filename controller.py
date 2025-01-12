@@ -43,7 +43,7 @@ class Controller:
             "edit_pred": "Edit Prediction",
             "pred_overview": "Prediction Overview",
             "result_overview": "Result Overview",
-            "portfolio": "Portfolio",
+            "portfolio": "Portfolio Summary",
             "test": "Test Functionality",
             "quit": "Quit"
         }
@@ -62,7 +62,7 @@ class Controller:
 
         self.menus["result_overview"] = Menu("Result Overview", stdscr=self.stdscr, action=self.handle_result_overview_action, input_handler=self.input_handler)
 
-        self.menus["portfolio"] = Menu("Portfolio", stdscr=self.stdscr, action=self.handle_portfolio_action, input_handler=self.input_handler)
+        self.menus["portfolio"] = Menu("Portfolio Summary", stdscr=self.stdscr, action=self.handle_portfolio_action, input_handler=self.input_handler)
 
         self.menus["test"] = Menu("Test Menu", stdscr=self.stdscr, action=self.handle_test_action, input_handler=self.input_handler)
 
@@ -121,6 +121,8 @@ class Controller:
             self.active_menu = self.menus[choice]
         if choice == "result_overview":
             self.prediction_service.update_predictions()
+            self.active_menu = self.menus[choice]
+        if choice == 'portfolio':
             self.active_menu = self.menus[choice]
         if choice == "test":
             self.active_menu = self.menus[choice]
@@ -223,6 +225,17 @@ class Controller:
 
     def handle_portfolio_action(self):
         data = self.portfolio_service.get_portfolio()
+
+        if not data:
+            raise MissingDataError
+
+        while True:
+            res = self.active_menu.portfoliosummary(data)
+
+            if res in self.menus:
+                self.active_menu = self.menus[res]
+                break
+        
 
     def handle_test_action(self):
         # if res in self.menus:
