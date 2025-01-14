@@ -88,6 +88,8 @@ class InputHandler:
                 if user_input == 'r' and can_refresh:
                     raise RefreshInputError
 
+                if input_type == str:
+                    return_val = user_input
                 if input_type == int:
                     return_val = int(user_input)
                 elif input_type == float:

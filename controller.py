@@ -95,8 +95,6 @@ class Controller:
     def on_exit(self):
         state = {
             "active_menu": None,
-            "predictions": self.prediction_service.get_predictions(to_json=True),
-            "results": self.prediction_service.get_results(to_json=True)
         }
         if self.active_menu:
             state["active_menu"] = next(key for key, val in self.menus.items() if val == self.active_menu)

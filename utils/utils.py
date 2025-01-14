@@ -135,6 +135,16 @@ def unix_to_date_string(timestamp: int) -> str:
 def unix_to_datetime_string(timestamp: int) -> str:
     return datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
 
+def datetime_to_unix(value: datetime.datetime) -> float:
+    return value.timestamp()
+
+def datestring_to_unix(value: str) -> float:
+    try:
+        to_datetime = datetime.datetime.strptime(value, '%Y-%m-%d')
+        return to_datetime.timestamp()
+    except ValueError as e:
+        raise
+
 def get_weekday(date: datetime.datetime) -> str:
     match date.weekday():
         case 0:
