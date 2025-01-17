@@ -93,9 +93,9 @@ class Database:
 
     @staticmethod
     def format_value(value) -> str:
-        if not value:
-            return ""
-    
+        if value == '':
+            return f"''"
+
         if type(value) == str:
             return f"'{value}'"
         else:
@@ -259,6 +259,8 @@ class Database:
                 formatted_row[col_name] = int(row[i])
             if col_type == "DATE":
                 formatted_row[col_name] = row[i]
+            if col_type == "DATETIME":
+                formatted_row[col_name] = datetime.datetime.fromisoformat(row[i])
 
         return formatted_row
 
@@ -455,6 +457,29 @@ def candles_setup(db: Database):
     except InvalidValuesError as e:
         raise
 
+def market_trades_setup(db: Database):
+    try:
+        # Setting up candles table
+        market_trades_def = {
+            "trade_id": "TEXT PRIMARY KEY UNIQUE",
+            "trading_pair": "TEXT",
+            "price": "REAL",
+            "size": "REAL",
+            "time": "DATETIME",
+            "side": "TEXT",
+            "bid": "REAL",
+            "ask": "REAL",
+            "exchange": "TEXT"
+        }
+        db.create_table("market_trade", market_trades_def)
+
+    except InvalidTableNameError as e:
+        raise
+    except InvalidInsertError as e:
+        raise
+    except InvalidValuesError as e:
+        raise
+
 def MyWoWSetup():
     db = Database(db_name="mywow.db")
 
@@ -462,6 +487,7 @@ def MyWoWSetup():
         # predictions_setup(db)
         # results_setup(db)
         # candles_setup(db)
+        # market_trades_setup(db)
         pass
     except InvalidTableNameError as e:
         print(f"Invalid Table Name")
