@@ -473,6 +473,19 @@ def market_trades_setup(db: Database):
         }
         db.create_table("market_trade", market_trades_def)
 
+        market_candles_def = {
+            "candle_id": "TEXT PRIMARY KEY UNIQUE",
+            "time": "DATETIME",
+            "start": "INT",
+            "trading_pair": "TEXT",
+            "open": "REAL",
+            "high": "REAL",
+            "low": "REAL",
+            "close": "REAL",
+            "volume": "REAL",
+        }
+        db.create_table("market_candles", market_candles_def)
+
     except InvalidTableNameError as e:
         raise
     except InvalidInsertError as e:
