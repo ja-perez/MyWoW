@@ -79,12 +79,17 @@ class PredictionService:
 
         todays_date = datetime.date.today()
         if self.db.table_exists('predictions'):
+
             predictions = [Prediction(data=pred_data) for pred_data in self.db.get_rows(table_name='predictions', limit=-1)]
             for prediction in predictions:
                 end_date = prediction.end_date
                 start_date = prediction.start_date
+
+                candles: list[dict] = self.get_candles(prediction.trading_pair, start_date, end_date)
+                for candle in candles:
+                    self.upload_candle(prediction.trading_pair, candle)
+
                 if todays_date > end_date.date():
-                    candles: list[dict] = self.get_candles(prediction.trading_pair, start_date, end_date)
                     candles.sort(key=lambda x: x['date'], reverse=True)
                     close_price = candles[0]['close']
                     prediction.close_price = close_price
@@ -156,8 +161,6 @@ class PredictionService:
 
     def get_candles(self, trading_pair: str, start_date: datetime.datetime, end_date: datetime.datetime) -> list[dict]:
         if self.db.table_exists('candles'):
-            days_timedelta = min(end_date, datetime.datetime.today() - datetime.timedelta(days=1)) - start_date
-            days = days_timedelta.days + 1
             where_conditions = self.db.build_where(
                 eq={
                     'trading_pair':f"'{trading_pair}'"
@@ -170,14 +173,6 @@ class PredictionService:
                 })
 
             candles = self.db.get_rows('candles', where_statement=where_conditions)
-            
-            if len(candles) < days:
-                res = cb.get_asset_candles(self.client, trading_pair, Granularity.ONE_DAY, start_date, end_date)
-                for candle in res:
-                    self.upload_candle(trading_pair, candle)
-
-                candles = self.db.get_rows('candles', where_statement=where_conditions)
-
         else:
             output_filename = f'{start_date.strftime("%Y%m%d")}_{end_date.strftime("%Y%m%d")}_{trading_pair}_candles.json'
             output_file_path = utils.get_path_from_data_dir(output_filename)
