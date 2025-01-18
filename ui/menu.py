@@ -26,17 +26,22 @@ class Menu:
         self.options = options if options else {}
         self.has_options = True if options else False
 
+
         if not stdscr:
             raise Exception("stdscr cannot be None")
 
     def menu_output(func: Any):
         def wrapper(self, *args, **kwargs):
             self.stdscr.clear()
-            menu_title = ' '.join([self.title, '(press q to quit program, enter c to cancel input)', '\n\n'])
+            menu_title = f"{self.title}\n\n"
+            special_keys = '(q to quit, c to cancel)'
             if curses.has_colors() and curses.can_change_color():
                 self.stdscr.addstr(0, 0, menu_title, curses.A_BOLD)
             else:
                 self.stdscr.addstr(0, 0, menu_title)
+            max_y, _ = self.stdscr.getmaxyx() 
+            self.stdscr.addstr(max_y - 1, 0, special_keys)
+            self.stdscr.move(2, 0)
             return func(self, *args, **kwargs)
         return wrapper
 
@@ -60,10 +65,9 @@ class Menu:
             self.stdscr.hline('-', x)
             self.stdscr.addstr(y + 2, 0, '\n')
 
-    def display_options(self) -> int:
+    def display_options(self) -> Any:
         y, _ = self.stdscr.getyx()
-        y += 2
-        self.stdscr.addstr(y - 1, 0, "Options:\n")
+        y += 1
 
         options_count = len(self.options)
         choice = 0
@@ -71,8 +75,10 @@ class Menu:
             self.stdscr.move(y, 0)
             for i, key in enumerate(self.options):
                 self.stdscr.clrtoeol()
-                option_output = f"{'>' if i == choice else ' '} {self.options[key]}\n"
-                self.stdscr.addstr(option_output)
+                if i == choice:
+                    self.stdscr.addstr(f"> {self.options[key]} \n", curses.A_REVERSE)
+                else:
+                    self.stdscr.addstr(f"  {self.options[key]}\n")
 
             try:
                 updated_choice = self.input_handler.get_choice(choice, options_count)
@@ -82,6 +88,9 @@ class Menu:
                     choice = updated_choice
             except QuitInputError:
                 raise QuitMenuError
+            except CancelInputError:
+                raise CancelMenuError
+        self.stdscr.clrtobot()
 
         keys = [key for key in self.options]
         return keys[choice]
@@ -251,42 +260,26 @@ class Menu:
     def selectprediction(self, data: list[Prediction]) -> Prediction:
         # TODO: Add menu option or special inputs for retrieving next 10 predictions, currently limit data retrieval to 10
         y, _ = self.stdscr.getyx()
-        header = f"{'Symbol':<10} {'Start Date':<15} {'Start Price':<15} {'End Date':<15}\n"
+        header = f"  {'Symbol':<10} {'Start Date':<15} {'Start Price':<15} {'End Date':<15}"
         self.display_header(header)
 
-        results_count = len(data)
-        choice = 0
-        while True:
-            self.stdscr.move(y + 1, 0)
-            self.stdscr.clrtobot()
-            for i, pred in enumerate(data):
-                formatted_pred = f"{pred.symbol:<10} {pred.view_start_date():<15} {pred.start_price:<15.8f} {pred.view_end_date():<15}\n"
-                # Highlight current choice (highlight in this case means reverse color pallet)
-                if i == choice:
-                    self.stdscr.addstr(formatted_pred, curses.A_REVERSE)
-                else:
-                    self.stdscr.addstr(formatted_pred)
+        predictions_output = {
+            pred : f"{pred.symbol:<10} {pred.view_start_date():<15} {pred.start_price:<15.8f} {pred.view_end_date():<15}"
+            for pred in data
+        }
+        self.options = predictions_output
 
-            try:
-                updated_choice = self.input_handler.get_choice(choice, results_count)
-                if updated_choice == curses.KEY_ENTER:
-                    break
-                else:
-                    choice = updated_choice
-            except QuitInputError:
-                raise QuitMenuError
+        prediction = self.display_options()
 
         self.stdscr.move(y, 0)
         self.stdscr.clrtobot()
 
-        return data[choice]
+        return prediction
 
     @menu_exception_handler
     def predictionoverview(self, prediction: Prediction, candles: list[dict]):
         # TODO: Refactor this to be more modular
-        # TODO: Refactor this and add an option specifying which prediction to analyze
         # TODO: Refactor this and add a "carousel" for viewing multiple predictions by clicking [P]revious and [N]ext
-
         header = f'{"Symbol":<15} {"Start Date":<15} {"End Date":<15}\n'
         self.display_header(header)
 
