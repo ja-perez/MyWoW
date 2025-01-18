@@ -147,7 +147,8 @@ class Prediction:
             self.start_price,
             self.end_price,
             self.buy_price,
-            self.end_price,
+            self.sell_price,
+            self.close_price,
         ]
 
     def to_json(self):

@@ -84,12 +84,12 @@ class PredictionService:
                 end_date = prediction.end_date
                 start_date = prediction.start_date
                 if todays_date > end_date.date():
-                    candles: list[dict] = self.get_candles(prediction['trading_pair'], start_date, end_date)
+                    candles: list[dict] = self.get_candles(prediction.trading_pair, start_date, end_date)
                     candles.sort(key=lambda x: x['date'], reverse=True)
                     close_price = candles[0]['close']
-                    prediction['close_price'] = close_price
-                    self.add_result(prediction)
-                    self.remove_prediction(prediction['symbol'], prediction['start_date'])
+                    prediction.close_price = close_price
+                    self.add_result(prediction.get_values())
+                    self.remove_prediction(prediction)
         else:
             predictions = self.get_predictions()
             new_data = []
