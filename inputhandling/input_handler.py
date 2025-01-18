@@ -146,6 +146,8 @@ class InputHandler:
                     return curses.KEY_ENTER
                 if input_key_as_char == 'q':
                     raise QuitInputError
+                if input_key_as_char == 'c':
+                    raise CancelInputError
             except QuitInputError:
                 raise
 
