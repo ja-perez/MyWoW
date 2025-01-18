@@ -195,7 +195,7 @@ class Database:
         return f"WHERE {' AND '.join(where_conditions)}"
 
     @check_table
-    def get_rows(self, table_name: Optional[str] = None, limit: int = 20, where_statement: str = '', headers: Optional[list[str]] = None) -> list[ dict[ str, str | float | int | datetime.datetime ] ]:
+    def get_rows(self, table_name: Optional[str] = None, limit: int = 20, where_statement: str = '', order_by_statement: str = '', headers: Optional[list[str]] = None) -> list[ dict[ str, str | float | int | datetime.datetime ] ]:
         if headers:
             header_query = ', '.join(headers)
         else:
@@ -203,7 +203,7 @@ class Database:
 
         limit_statement = f"{f'LIMIT {limit}' if limit != -1 else ''}"
 
-        query = f"SELECT {header_query} FROM {table_name}" + f" {where_statement} " + f" {limit_statement}"
+        query = f"SELECT {header_query} FROM {table_name}" + f" {where_statement} " + f" {order_by_statement}" f" {limit_statement}"
         res = self.cur.execute(query)
         rows = res.fetchall()
         return [self.format_row(row=row, table_name=table_name, headers=headers) for row in rows]
