@@ -26,7 +26,6 @@ class Menu:
         self.options = options if options else {}
         self.has_options = True if options else False
 
-
         if not stdscr:
             raise Exception("stdscr cannot be None")
 
@@ -54,6 +53,15 @@ class Menu:
             except CancelMenuError:
                 raise
         return wrapper
+
+    def clear_lines(self, start_y: int, line_count: int):
+        max_y, _ = self.stdscr.getmaxyx()
+        for i in range(0, line_count):
+            if start_y + i >= max_y:
+                break
+            self.stdscr.move(start_y + i, 0)
+            self.stdscr.clrtoeol()
+        self.stdscr.move(start_y, 0)
 
     def display_header(self, header: str):
         if curses.has_colors() and curses.can_change_color():
@@ -141,10 +149,11 @@ class Menu:
     @menu_exception_handler
     def addprediction(self):
         y, _ = self.stdscr.getyx()
+        last_y, _ = self.stdscr.getmaxyx()
+        last_y -= 2
 
         while True:
-            self.stdscr.move(y, 0)
-            self.stdscr.clrtobot()
+            self.clear_lines(y, last_y - y)
 
             try:
                 prediction = {}
@@ -209,14 +218,21 @@ class Menu:
             except CancelMenuError:
                 raise
             except RefreshInputError:
+                last_y = self.stdscr.getyx()
                 continue
 
             except MissingDataError:
-                self.stdscr.addstr(f"\nError submitting prediction: Missing Data\n")
+                last_y = self.stdscr.getyx()
+                self.stdscr.addstr("Error with prediction upload: Missing data")
+                continue
             except InvalidDataError:
-                self.stdscr.addstr(f"\nError submitting prediction: Invalid Data\n")
+                last_y = self.stdscr.getyx()
+                self.stdscr.addstr("Error with prediction upload: Invalid data")
+                continue
             except TypeError:
-                self.stdscr.addstr(f"\nError submitting prediction: Type Error\n")
+                last_y = self.stdscr.getyx()
+                self.stdscr.addstr("Error with prediction upload: Type error")
+                continue
 
     @menu_exception_handler
     def editprediction(self, prediction: Prediction):
