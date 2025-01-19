@@ -14,8 +14,8 @@ class Prediction:
                  data: Optional[dict] = None,
                  symbol: str = '',
                  trading_pair: str = '',
-                 start_date: Optional[datetime.datetime] = None,
-                 end_date: Optional[datetime.datetime] = None,
+                 start_date: datetime.datetime | str = '',
+                 end_date: datetime.datetime | str = '',
                  start_price: float = 0,
                  end_price: float = 0,
                  buy_price: float = 0,
@@ -26,8 +26,8 @@ class Prediction:
         self.symbol: str = symbol if symbol else ''
         self.trading_pair: str = trading_pair if trading_pair else ''
 
-        self.start_date: datetime.datetime | None = start_date
-        self.end_date: datetime.datetime | None = end_date
+        self.start_date: datetime.datetime | str = start_date if start_date else ''
+        self.end_date: datetime.datetime | str = end_date if end_date else ''
 
         self.start_price: float = start_price
         self.end_price: float = end_price
@@ -71,11 +71,11 @@ class Prediction:
             if not self.symbol:
                 raise MissingDataError
 
-            self.start_date = self.start_date if self.start_date else datetime.datetime.strptime(self.data['start_date'], '%Y-%m-%d')
+            self.start_date = self.start_date if self.start_date else self.data.get('start_date', '')
             if not self.start_date:
                 raise MissingDataError
 
-            self.end_date = self.end_date if self.end_date else datetime.datetime.strptime(self.data['end_date'], '%Y-%m-%d')
+            self.end_date = self.end_date if self.end_date else self.data.get('end_date', '')
             if not self.end_date:
                 raise MissingDataError
 
@@ -103,6 +103,11 @@ class Prediction:
             self.buy_price = float(self.buy_price)
             self.sell_price = float(self.sell_price)
             self.close_price = float(self.close_price)
+
+            if type(self.start_date) == str:
+                self.start_date = datetime.datetime.strptime(self.data['start_date'], '%Y-%m-%d')
+            if type(self.end_date) == str:
+                self.end_date = datetime.datetime.strptime(self.data['end_date'], '%Y-%m-%d')
 
             # validity of value verification
             if self.start_price <= 0 or self.end_price <= 0:
@@ -136,7 +141,7 @@ class Prediction:
             return self.end_date.strftime("%Y-%m-%d")
         return "XXXX-XX-XX"
 
-    def get_values(self, is_result=False) -> list[str | float]:
+    def get_values(self) -> list[str | float]:
         data: list[str | float] = [
             self.prediction_id,
             self.symbol,
@@ -147,13 +152,30 @@ class Prediction:
             self.end_price,
             self.buy_price,
             self.sell_price,
-        ]
-        if is_result:
-            data.append(self.close_price)
+            self.close_price,
+            ]
         return data
 
-    def to_json(self, is_result=False) -> dict[str, str | float]:
-        data: dict[str, str | float] = {
+    def prediction_upload(self) -> list[str | float]:
+        return [
+            self.prediction_id,
+            self.symbol,
+            self.trading_pair,
+            self.view_start_date(),
+            self.view_end_date(),
+            self.start_price,
+            self.end_price,
+            self.buy_price,
+            self.sell_price,
+        ]
+
+    def result_upload(self) -> list[str | float]:
+        data = self.prediction_upload()
+        data.append(self.close_price)
+        return data
+
+    def to_json(self) -> dict[str, str | float]:
+        return {
             'symbol': self.symbol,
             'trading_pair': self.trading_pair,
             'start_date': self.view_start_date(),
@@ -162,7 +184,5 @@ class Prediction:
             'end_price': str(self.end_price),
             'buy_price': str(self.buy_price),
             'sell_price': str(self.sell_price),
+            'close_price': str(self.close_price)
         }
-        if is_result:
-            data['close_price'] = str(self.close_price)
-        return data
