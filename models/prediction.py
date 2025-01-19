@@ -137,8 +137,8 @@ class Prediction:
             return self.end_date.strftime("%Y-%m-%d")
         return "XXXX-XX-XX"
 
-    def get_values(self) -> list[str | float]:
-        return [
+    def get_values(self, is_result=False) -> list[str | float]:
+        data = [
             self.prediction_id,
             self.symbol,
             self.trading_pair,
@@ -148,11 +148,13 @@ class Prediction:
             self.end_price,
             self.buy_price,
             self.sell_price,
-            self.close_price,
         ]
+        if is_result:
+            data.append(self.close_price)
+        return data
 
-    def to_json(self):
-        return {
+    def to_json(self, is_result=False) -> dict[str, str | float]:
+        data = {
             'symbol': self.symbol,
             'trading_pair': self.trading_pair,
             'start_date': self.view_start_date(),
@@ -161,5 +163,7 @@ class Prediction:
             'end_price': str(self.end_price),
             'buy_price': str(self.buy_price),
             'sell_price': str(self.sell_price),
-            'close_price': str(self.close_price)
         }
+        if is_result:
+            data['close_price'] = str(self.close_price)
+        return data
