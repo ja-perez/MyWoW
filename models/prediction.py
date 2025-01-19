@@ -14,8 +14,8 @@ class Prediction:
                  data: Optional[dict] = None,
                  symbol: str = '',
                  trading_pair: str = '',
-                 start_date: datetime.datetime | str = '',
-                 end_date: datetime.datetime | str = '',
+                 start_date: Optional[datetime.datetime] = None,
+                 end_date: Optional[datetime.datetime] = None,
                  start_price: float = 0,
                  end_price: float = 0,
                  buy_price: float = 0,
@@ -26,8 +26,8 @@ class Prediction:
         self.symbol: str = symbol if symbol else ''
         self.trading_pair: str = trading_pair if trading_pair else ''
 
-        self.start_date: datetime.datetime | str = start_date if start_date else ''
-        self.end_date: datetime.datetime | str = end_date if end_date else ''
+        self.start_date: datetime.datetime = start_date if start_date else datetime.datetime.today()
+        self.end_date: datetime.datetime = end_date if end_date else datetime.datetime.today()
 
         self.start_price: float = start_price
         self.end_price: float = end_price
@@ -71,13 +71,11 @@ class Prediction:
             if not self.symbol:
                 raise MissingDataError
 
-            self.start_date = self.start_date if self.start_date else self.data.get('start_date', '')
-            if not self.start_date:
-                raise MissingDataError
-
-            self.end_date = self.end_date if self.end_date else self.data.get('end_date', '')
-            if not self.end_date:
-                raise MissingDataError
+            if self.start_date.date() == self.end_date.date():
+                if not self.data.get('start_date', None):
+                    raise MissingDataError
+                if not self.data.get('end_date', None):
+                    raise MissingDataError
 
             self.start_price = self.start_price if self.start_price else self.data['start_price']
             if not self.start_price:
@@ -104,10 +102,16 @@ class Prediction:
             self.sell_price = float(self.sell_price)
             self.close_price = float(self.close_price)
 
-            if type(self.start_date) == str:
+            if type(self.data['start_date']) == str:
                 self.start_date = datetime.datetime.strptime(self.data['start_date'], '%Y-%m-%d')
-            if type(self.end_date) == str:
+            else:
+                self.start_date = self.data['start_date']
+
+            if type(self.data['end_date']) == str:
                 self.end_date = datetime.datetime.strptime(self.data['end_date'], '%Y-%m-%d')
+            else:
+                self.end_date = self.data['end_date']
+
 
             # validity of value verification
             if self.start_price <= 0 or self.end_price <= 0:

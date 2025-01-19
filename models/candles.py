@@ -5,18 +5,20 @@ class Candle:
     def __init__(self, init_data: dict):
         self.data = init_data
 
-        self.start = int(self.data['start'])
-        self.date = datetime.datetime.strptime(self.data['date'], '%Y-%m-%d')
-        self.time = datetime.datetime.fromtimestamp(self.start)
+        self.start: int = int(self.data['start'])
+        self.date: datetime.datetime = datetime.datetime.fromtimestamp(self.start)
 
         self.trading_pair: str = self.data['trading_pair']
         self.symbol: str = self.trading_pair.split('-')[0]
 
-        self.open = float(self.data['open'])
-        self.high = float(self.data['high'])
-        self.low = float(self.data['low'])
-        self.close = float(self.data['close'])
-        self.volume = float(self.data['volume'])
+        self.open_price: float = float(self.data['open'])
+        self.high_price: float = float(self.data['high'])
+        self.low_price: float = float(self.data['low'])
+        self.close_price: float = float(self.data['close'])
+        self.volume: float = float(self.data['volume'])
+
+        self.range_high: float = 0
+        self.range_low: float = 0
 
         self.candle_id = f"{self.symbol}-{self.start}"
 
@@ -25,9 +27,9 @@ class Candle:
             return self.date.strftime("%Y-%m-%d")
         return "XXXX-XX-XX"
 
-    def view_time(self) -> str:
-        if type(self.time) == datetime.datetime:
-            return self.time.isoformat()
+    def view_iso_date(self) -> str:
+        if type(self.date) == datetime.datetime:
+            return self.date.isoformat()
         return "XXXX-XX-XXTXX:XX:XXZ"
 
     def get_values(self) -> list[str | float]:
@@ -36,10 +38,10 @@ class Candle:
             self.view_date(),
             self.start,
             self.trading_pair,
-            self.open,
-            self.high,
-            self.low,
-            self.close,
+            self.open_price,
+            self.high_price,
+            self.low_price,
+            self.close_price,
             self.volume,
         ]
 
@@ -49,9 +51,9 @@ class Candle:
             'date': self.view_date(),
             'start': str(self.start),
             'trading_pair': self.trading_pair,
-            'open': str(self.open),
-            'high': str(self.high),
-            'low': str(self.low),
-            'close': str(self.close),
+            'open': str(self.open_price),
+            'high': str(self.high_price),
+            'low': str(self.low_price),
+            'close': str(self.close_price),
             'volume': str(self.volume)
         }
