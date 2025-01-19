@@ -4,6 +4,7 @@ from typing import Callable, Optional, Any
 
 from inputhandling import InputHandler, QuitInputError, CancelInputError, RefreshInputError
 from models.prediction import Prediction, MissingDataError, InvalidDataError
+from models.candles import Candle
 from models.portfolio import Portfolio
 
 class QuitMenuError(Exception):
@@ -268,7 +269,7 @@ class Menu:
         except CancelMenuError:
             return None
 
-    def displaypricechart(self, data: list[dict]):
+    def displaypricechart(self, data: list[Candle]):
         y_start, x_start = self.stdscr.getyx()
 
         self.stdscr.move(20, 30)
@@ -302,7 +303,7 @@ class Menu:
         return prediction
 
     @menu_exception_handler
-    def predictionoverview(self, prediction: Prediction, candles: list[dict]):
+    def predictionoverview(self, prediction: Prediction, candles: list[Candle]):
         # TODO: Refactor this to be more modular
         # TODO: Refactor this and add a "carousel" for viewing multiple predictions by clicking [P]revious and [N]ext
         header = f'{"Symbol":<15} {"Start Date":<15} {"End Date":<15}\n'
@@ -334,15 +335,15 @@ class Menu:
         return choice
 
     @menu_exception_handler
-    def resultoverview(self, result: Prediction, candles: list[dict]):
-        header = f'{"Symbol":<15} {"Start Date":<15} {"End Date":<15} {"Close Price":<15} {"High":<15} {"Low":<15}\n'
+    def resultoverview(self, result: Prediction, candles: list[Candle]):
+        header = f'{"Symbol":<15} {"Start Date":<15} {"End Date":<15} {"Close Price":<15} {"Low":<15} {"High":<15}\n'
         self.display_header(header)
 
-        high = candles[0]['range_high']
-        low = candles[0]['range_low']
+        high = candles[0].range_high
+        low = candles[0].range_low
 
         while True:
-            self.stdscr.addstr(f"{result.trading_pair:<15} {result.view_start_date():<15} {result.view_end_date():<15} {result.close_price:<15.8f} {high:<15.8f} {low:<15.8f}\n")
+            self.stdscr.addstr(f"{result.trading_pair:<15} {result.view_start_date():<15} {result.view_end_date():<15} {result.close_price:<15.8f} {low:<15.8f} {high:<15.8f}\n")
     
             self.displaypricechart(candles)
     
