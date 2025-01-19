@@ -1,6 +1,6 @@
 import datetime
 import os
-from typing import Any
+from typing import Optional
 
 import utils
 import services.coinbase as cb
@@ -20,21 +20,20 @@ class PredictionService:
 
         self.predictions_updated = False
 
-    def get_predictions(self, to_json=False) -> list[dict] | list[Prediction]:
+    def get_predictions(self, start_index: int = 0, limit: int = 10) -> list[Prediction]:
         # TODO: See ui/menu.py/Menu/selectprediction
         if self.db.table_exists('predictions'):
-            res = self.db.get_rows('predictions', limit=10)
-            predictions = [Prediction(data=result_data) for result_data in res]
-
-            if to_json:
-                return [pred.to_json() for pred in predictions]
-            else:
-                return predictions
+            # use start_index to offset limit to return next set of rows
+            limit = -1 if limit < 0 else start_index + limit
+            res = self.db.get_rows('predictions', limit=limit)
+            predictions = [Prediction(data=result_data) for result_data in res[start_index:]]
+            return predictions
         else:
-            file_data = utils.get_csv_data_from_file(self.prediction_data_path)
+            file_rows = utils.get_csv_data_from_file(self.prediction_data_path)
             data = []
-            for row in file_data:
-                data.append({
+            end_index = len(file_rows) if limit < 0 else start_index + limit
+            for row in file_rows[start_index:end_index]:
+                pred_data = {
                     "symbol": row[0],
                     "trading_pair": row[1],
                     "start_date": row[2],
@@ -43,24 +42,23 @@ class PredictionService:
                     "end_price": float(row[5]),
                     "buy_price": float(row[6]),
                     "sell_price": float(row[7])
-                })
+                }
+                data.append(Prediction(pred_data))
             return data
 
-    def get_results(self, to_json=False) -> list[Prediction] | list[dict]:
+    def get_results(self, start_index: int = 0, limit: int = 10) -> list[Prediction]:
         # TODO: See ui/menu.py/Menu/selectprediction
         if self.db.table_exists('results'):
-            res = self.db.get_rows('results', limit=10)
-            results: list[Prediction] = [Prediction(data=result_data) for result_data in res]
-
-            if to_json:
-                return [result.to_json() for result in results]
-            else:
-                return results 
+            limit = -1 if limit < 0 else start_index + limit
+            res = self.db.get_rows('results', limit=limit)
+            results = [Prediction(data=result_data) for result_data in res]
+            return results 
         else:
-            file_data = utils.get_csv_data_from_file(self.prediction_results_path)
+            file_rows = utils.get_csv_data_from_file(self.prediction_results_path)
             data = []
-            for row in file_data:
-                data.append({
+            end_index = len(file_rows) if limit < 0 else start_index + limit
+            for row in file_rows[start_index: end_index]:
+                result_data = {
                     "symbol": row[0],
                     "trading_pair": row[1],
                     "start_date": row[2],
@@ -70,7 +68,8 @@ class PredictionService:
                     "buy_price": float(row[6]),
                     "sell_price": float(row[7]),
                     "close_price": float(row[8]),
-                })
+                }
+                data.append(Prediction(result_data))
             return data
 
     def update_predictions(self):
@@ -81,32 +80,28 @@ class PredictionService:
         if self.db.table_exists('predictions'):
 
             predictions = [Prediction(data=pred_data) for pred_data in self.db.get_rows(table_name='predictions', limit=-1)]
-            for prediction in predictions:
-                end_date = prediction.end_date
-                start_date = prediction.start_date
+            for pred in predictions:
+                end_date = pred.end_date
+                start_date = pred.start_date
 
-                candles: list[dict] = self.get_candles(prediction.trading_pair, start_date, end_date)
+                candles: list[dict] = self.get_candles(pred.trading_pair, start_date, end_date)
                 for candle in candles:
-                    self.upload_candle(prediction.trading_pair, candle)
+                    self.upload_candle(pred.trading_pair, candle)
 
                 if todays_date > end_date.date():
                     candles.sort(key=lambda x: x['date'], reverse=True)
                     close_price = candles[0]['close']
-                    prediction.close_price = close_price
-                    self.add_result(prediction.get_values())
-                    self.remove_prediction(prediction)
+                    pred.close_price = close_price
+                    self.add_result(pred.get_values(is_result=True))
+                    self.remove_prediction(pred)
         else:
-            predictions = self.get_predictions()
+            predictions = self.get_predictions(limit=-1)
             new_data = []
             for pred in predictions:
-                end_date = datetime.datetime.strptime(pred["end_date"], "%Y-%m-%d")
-                start_date = datetime.datetime.strptime(pred["start_date"], "%Y-%m-%d")
-                if todays_date > end_date.date():   # want to update preds day after end date
-                    trading_pair = pred["trading_pair"]
-                    candle = cb.get_asset_candles(self.client, trading_pair, Granularity.ONE_DAY, start_date, end_date) 
-                    pred_result = pred.copy()
-                    pred_result["close_price"] = float(candle[0]["close"])
-                    utils.add_data_to_csv_file(self.prediction_results_path, pred_result)
+                if todays_date > pred.end_date.date():
+                    candle = cb.get_asset_candles(self.client, pred.trading_pair, Granularity.ONE_DAY, pred.start_date, pred.end_date)
+                    pred.close_price = float(candle[0]['close'])
+                    utils.add_data_to_csv_file(self.prediction_results_path, pred.to_json())
                 else:
                     new_data.append(pred)
             utils.write_many_data_to_csv_file(self.prediction_data_path, new_data)
@@ -117,46 +112,24 @@ class PredictionService:
         if self.db.table_exists('results'):
             self.db.insert_one(table_name='results', values=result_data)
 
-    def add_prediction(self, prediction_data: dict, use_model=False):
+    def add_prediction(self, prediction: Prediction):
         if self.db.table_exists('predictions'):
-            if use_model:
-                prediction = Prediction(data=prediction_data)
-                self.db.insert_one(table_name='predictions', values=prediction.get_values())
-            else:
-                symbol: str = prediction_data['symbol']
-                start_date: datetime.datetime = prediction_data['start_date']
-                end_date: datetime.datetime = prediction_data['end_date']
-                prediction_data['prediction_id'] = f'{symbol}-{start_date.month}{start_date.day}{end_date.month}{end_date.day}-{start_date.year}'
-                prediction_data['start_date'] = prediction_data["start_date"].strftime("%Y-%m-%d")
-                prediction_data['end_date'] = prediction_data["end_date"].strftime("%Y-%m-%d")
-                self.db.insert_one(table_name='predictions', values=prediction_data)
+            self.db.insert_one(table_name='predictions', values=prediction.get_values())
         else:
-            ordered_prediction = {
-                "symbol": prediction_data["symbol"],
-                "trading_pair": prediction_data["trading_pair"],
-                "start_date": prediction_data["start_date"].strftime("%Y-%m-%d"),
-                "end_date": prediction_data["end_date"].strftime("%Y-%m-%d"),
-                "start_price": prediction_data["start_price"],
-                "end_price": prediction_data["end_price"],
-                "buy_price": prediction_data["buy_price"],
-                "sell_price": prediction_data["sell_price"],
-            }
-            utils.add_dict_to_csv_file(self.prediction_data_path, ordered_prediction)
+            utils.add_dict_to_csv_file(self.prediction_data_path, prediction.to_json())
 
         self.predictions_updated = False
 
-    def remove_prediction(self, prediction: Prediction):
+    def remove_prediction(self, pred_to_remove: Prediction):
         if self.db.table_exists('predictions'):
-            self.db.delete_where(table_name='predictions', values={'symbol':prediction.symbol, 'start_date':prediction.view_start_date()})
+            self.db.delete_where(table_name='predictions', values={'symbol':pred_to_remove.symbol, 'start_date':pred_to_remove.view_start_date()})
         else:
-            file_data: Any = self.get_predictions()
-
+            curr_predictions: list[Prediction] = self.get_predictions(limit=-1)
             new_data = []
-            for pred in file_data:
-                if pred["symbol"] == prediction.symbol and pred["start_date"] == prediction.view_start_date():
+            for pred in curr_predictions:
+                if pred.symbol == pred_to_remove.symbol and pred.start_date == pred_to_remove.start_date:
                     continue
-                new_data.append(pred)
-
+                new_data.append(pred.to_json())
             utils.write_many_data_to_csv_file(self.prediction_data_path, new_data)
 
     def get_candles(self, trading_pair: str, start_date: datetime.datetime, end_date: datetime.datetime) -> list[dict]:
