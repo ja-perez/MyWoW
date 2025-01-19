@@ -47,6 +47,16 @@ def write_dict_data_to_file(file_path: str, data: dict) -> None:
         print("Failed to write data to file: " + file_path)
         print("Error:\n", e)
 
+def write_json_data_to_file(file_path: str, data: dict | list) -> None:
+    print("Writing data to file path: " + file_path)
+    try:
+        with open(file_path, "w") as f:
+            json.dump(data, f, indent=4)
+        print("Successfully wrote data to file: " + file_path)
+    except Exception as e:
+        print("Failed to write data to file: " + file_path)
+        print("Error:\n", e)
+
 def append_data_to_file(file_path: str, data: dict) -> None:
     print("Adding data to file path: " + file_path)
     try:
@@ -110,6 +120,16 @@ def get_dict_data_from_file(file_path: str) -> dict:
     print("Reading data from file path: " + file_path)
     try:
         with open(file_path, "r") as f:
+            return json.load(f)
+    except Exception as e:
+        print("Failed to read data from file: " + file_path)
+        print("Error:\n", e)
+        return {}
+
+def get_json_data_from_file(file_path: str):
+    print("Reading data from file path: " + file_path)
+    try:
+        with open(file_path, 'r') as f:
             return json.load(f)
     except Exception as e:
         print("Failed to read data from file: " + file_path)
