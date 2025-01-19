@@ -9,6 +9,7 @@ from coinbase.rest import RESTClient # type: ignore
 from database import Database
 
 from models.prediction import Prediction
+from models.candles import Candle
 
 class PredictionService:
     def __init__(self, client: RESTClient = None, db: Database | None = None):
@@ -72,41 +73,67 @@ class PredictionService:
                 data.append(Prediction(result_data))
             return data
 
+    def update_candles(self, prediction: Prediction):
+        candles = cb.get_asset_candles(self.client, prediction.trading_pair, cb.Granularity.ONE_DAY, prediction.start_date, prediction.end_date)
+        for candle_data in candles:
+            candle = Candle(candle_data)
+            self.db.insert_one(table_name='candles', values=candle.get_values())
+
     def update_predictions(self):
         if self.predictions_updated:
             return
 
         todays_date = datetime.date.today()
-        if self.db.table_exists('predictions'):
-            predictions = [Prediction(data=pred_data) for pred_data in self.db.get_rows(table_name='predictions', limit=-1)]
-            for pred in predictions:
-                candles = self.get_candles(pred.trading_pair, pred.start_date, pred.end_date)
-                for candle in candles:
-                    self.upload_candle(pred.trading_pair, candle)
+        predictions = self.get_predictions(limit=-1)
+        new_data = []
+        for pred in predictions:
+            self.update_candles(pred)
+            candles = self.get_candles(pred.trading_pair, pred.start_date, pred.end_date)
 
-                if todays_date > pred.end_date.date():
-                    candles.sort(key=lambda x: x['date'], reverse=True)
-                    close_price = candles[0]['close']
-                    pred.close_price = close_price
-                    self.add_result(pred)
-                    self.remove_prediction(pred)
-        else:
-            predictions = self.get_predictions(limit=-1)
-            new_data = []
-            for pred in predictions:
-                if todays_date > pred.end_date.date():
-                    candle = cb.get_asset_candles(self.client, pred.trading_pair, Granularity.ONE_DAY, pred.start_date, pred.end_date)
-                    pred.close_price = float(candle[0]['close'])
-                    utils.add_data_to_csv_file(self.prediction_results_path, pred.to_json())
-                else:
-                    new_data.append(pred)
+            if todays_date > pred.end_date.date():
+                candles.sort(key=lambda x: x.date, reverse=True)
+                pred.close_price = candles[0].close_price
+                self.add_result(pred)
+                self.remove_prediction(pred)
+            else:
+                new_data.append(pred)
+
+        if not self.db.table_exists('predictions'):
             utils.write_many_data_to_csv_file(self.prediction_data_path, new_data)
+            
+        # TODO: Delete below after testing that above works
+        # if self.db.table_exists('predictions'):
+        #     for pred in predictions:
+        #         candles = self.get_candles(pred.trading_pair, pred.start_date, pred.end_date)
+        #         for candle in candles:
+        #             self.db.insert_one(table_name='candles', values=candle.get_values())
+        #             # self.upload_candle(pred.trading_pair, candle)
+
+        #         if todays_date > pred.end_date.date():
+        #             candles.sort(key=lambda x: x.date, reverse=True)
+        #             pred.close_price = candles[0].close_price
+        #             self.add_result(pred)
+        #             self.remove_prediction(pred)
+        # else:
+        #     new_data = []
+        #     for pred in predictions:
+        #         if todays_date > pred.end_date.date():
+        #             candles = self.get_candles(pred.trading_pair, pred.start_date, pred.end_date)
+        #             pred.close_price = candles[0].close_price
+        #             utils.add_data_to_csv_file(self.prediction_results_path, pred.to_json())
+        #             # candle = cb.get_asset_candles(self.client, pred.trading_pair, Granularity.ONE_DAY, pred.start_date, pred.end_date)
+        #             # pred.close_price = float(candle[0]['close'])
+        #         else:
+        #             new_data.append(pred)
+        #     utils.write_many_data_to_csv_file(self.prediction_data_path, new_data)
 
         self.predictions_updated = True
 
     def add_result(self, result: Prediction):
         if self.db.table_exists('results'):
-                self.db.insert_one(table_name='results', values=result.result_upload())
+            self.db.insert_one(table_name='results', values=result.result_upload())
+        else:
+            utils.add_data_to_csv_file(self.prediction_results_path, result.result_upload())
 
     def add_prediction(self, prediction: Prediction):
         if self.db.table_exists('predictions'):
@@ -128,7 +155,7 @@ class PredictionService:
                 new_data.append(pred.to_json())
             utils.write_many_data_to_csv_file(self.prediction_data_path, new_data)
 
-    def get_candles(self, trading_pair: str, start_date: datetime.datetime, end_date: datetime.datetime) -> list[dict]:
+    def get_candles(self, trading_pair: str, start_date: datetime.datetime, end_date: datetime.datetime) -> list[Candle]:
         if self.db.table_exists('candles'):
             where_conditions = self.db.build_where(
                 eq={
@@ -140,63 +167,28 @@ class PredictionService:
                         'max':f"'{datetime.datetime.strftime(end_date, "%Y-%m-%d")}'",
                     }
                 })
-            candles = self.db.get_rows('candles', where_statement=where_conditions)
+            rows = self.db.get_rows('candles', where_statement=where_conditions)
         else:
             output_filename = f'{start_date.strftime("%Y%m%d")}_{end_date.strftime("%Y%m%d")}_{trading_pair}_candles.json'
             output_file_path = utils.get_path_from_data_dir(output_filename)
 
             if os.path.exists(output_file_path):
-                candles = utils.get_json_data_from_file(output_file_path)
+                rows = utils.get_json_data_from_file(output_file_path)
             else:
-                candles = cb.get_asset_candles(self.client, trading_pair, Granularity.ONE_DAY, start_date, end_date)
-                utils.write_json_data_to_file(output_file_path, candles)
+                rows = cb.get_asset_candles(self.client, trading_pair, Granularity.ONE_DAY, start_date, end_date)
+                utils.write_json_data_to_file(output_file_path, rows)
 
-        range_high = float('-inf')
-        range_low = float('inf')
+        if not rows:
+            return []
+
+        candles = [Candle(row) for row in rows]
+        range_high = max(candles, key=lambda x:x.high_price).high_price
+        range_low = min(candles, key=lambda x:x.low_price).low_price
         for candle in candles:
-            range_high = max(range_high, float(candle['high']))
-            range_low = min(range_low, float(candle['low']))
-
-        for i, candle in enumerate(candles):
-            candle = {
-                'start': int(candle['start']),
-                'low': float(candle['low']),
-                'high': float(candle['high']),
-                'open': float(candle['open']),
-                'close': float(candle['close']),
-                'volume': float(candle['volume']),
-            }
-            candle['date'] = utils.unix_to_datetime_string(candle['start'])
-            candle['range_high'] = range_high
-            candle['range_low'] = range_low
-
-            candles[i] = candle
+            candle.range_high = range_high
+            candle.range_low = range_low
 
         return candles
-
-    def upload_candle(self, trading_pair: str, candle: dict):
-        start = int(candle['start'])
-        date = datetime.datetime.fromtimestamp(start).strftime("%Y-%m-%d")
-        candle_open = float(candle['open'])
-        high = float(candle['high'])
-        low = float(candle['low'])
-        close = float(candle['close'])
-        volume = float(candle['volume'])
-        symbol = trading_pair.split('-')[0]
-        id = f"{symbol}-{start}"
-
-        insert_data = [
-            id,
-            date,
-            start,
-            trading_pair,
-            candle_open,
-            high,
-            low,
-            close,
-            volume,
-        ]
-        self.db.insert_one(values=insert_data, table_name='candles')
 
 class AnalysisService:
     # Break-even Analysis
