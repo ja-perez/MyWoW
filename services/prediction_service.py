@@ -78,21 +78,17 @@ class PredictionService:
 
         todays_date = datetime.date.today()
         if self.db.table_exists('predictions'):
-
             predictions = [Prediction(data=pred_data) for pred_data in self.db.get_rows(table_name='predictions', limit=-1)]
             for pred in predictions:
-                end_date = pred.end_date
-                start_date = pred.start_date
-
-                candles: list[dict] = self.get_candles(pred.trading_pair, start_date, end_date)
+                candles = self.get_candles(pred.trading_pair, pred.start_date, pred.end_date)
                 for candle in candles:
                     self.upload_candle(pred.trading_pair, candle)
 
-                if todays_date > end_date.date():
+                if todays_date > pred.end_date.date():
                     candles.sort(key=lambda x: x['date'], reverse=True)
                     close_price = candles[0]['close']
                     pred.close_price = close_price
-                    self.add_result(pred.get_values(is_result=True))
+                    self.add_result(pred)
                     self.remove_prediction(pred)
         else:
             predictions = self.get_predictions(limit=-1)
@@ -108,13 +104,13 @@ class PredictionService:
 
         self.predictions_updated = True
 
-    def add_result(self, result_data: dict):
+    def add_result(self, result: Prediction):
         if self.db.table_exists('results'):
-            self.db.insert_one(table_name='results', values=result_data)
+                self.db.insert_one(table_name='results', values=result.result_upload())
 
     def add_prediction(self, prediction: Prediction):
         if self.db.table_exists('predictions'):
-            self.db.insert_one(table_name='predictions', values=prediction.get_values())
+            self.db.insert_one(table_name='predictions', values=prediction.prediction_upload())
         else:
             utils.add_dict_to_csv_file(self.prediction_data_path, prediction.to_json())
 
@@ -144,17 +140,16 @@ class PredictionService:
                         'max':f"'{datetime.datetime.strftime(end_date, "%Y-%m-%d")}'",
                     }
                 })
-
             candles = self.db.get_rows('candles', where_statement=where_conditions)
         else:
             output_filename = f'{start_date.strftime("%Y%m%d")}_{end_date.strftime("%Y%m%d")}_{trading_pair}_candles.json'
             output_file_path = utils.get_path_from_data_dir(output_filename)
 
             if os.path.exists(output_file_path):
-                candles = utils.get_dict_data_from_file(output_file_path)
+                candles = utils.get_json_data_from_file(output_file_path)
             else:
                 candles = cb.get_asset_candles(self.client, trading_pair, Granularity.ONE_DAY, start_date, end_date)
-                utils.write_dict_data_to_file(output_file_path, candles)
+                utils.write_json_data_to_file(output_file_path, candles)
 
         range_high = float('-inf')
         range_low = float('inf')
