@@ -3,8 +3,8 @@ import datetime
 from typing import Callable, Optional, Any
 
 from inputhandling import InputHandler, QuitInputError, CancelInputError, RefreshInputError
-from models.prediction import Prediction
-from models.portfolio import Portfolio, Position
+from models.prediction import Prediction, MissingDataError, InvalidDataError
+from models.portfolio import Portfolio
 
 class QuitMenuError(Exception):
     """Raised when user quits the program."""
@@ -179,10 +179,12 @@ class Menu:
                 self.stdscr.addstr(summary + '\n')
 
                 submit = self.input_handler.get_input(
-                    prompt="Submit Prediction", input_type=str, format="y/n", default="n", can_refresh=True).lower()
+                    prompt="Submit Prediction", input_type=str, format="y/n", default="n", can_refresh=True, validation=lambda x: x.lower() in 'yn').lower()
                 
                 if submit == 'n':
                     prediction = None
+                else: 
+                    prediction = Prediction(prediction)
 
                 self.options = {
                     "new": "Start new prediction",
@@ -208,6 +210,13 @@ class Menu:
                 raise
             except RefreshInputError:
                 continue
+
+            except MissingDataError:
+                self.stdscr.addstr(f"\nError submitting prediction: Missing Data\n")
+            except InvalidDataError:
+                self.stdscr.addstr(f"\nError submitting prediction: Invalid Data\n")
+            except TypeError:
+                self.stdscr.addstr(f"\nError submitting prediction: Type Error\n")
 
     @menu_exception_handler
     def editprediction(self, prediction: Prediction):

@@ -150,7 +150,7 @@ class Controller:
         while True:
             prediction, choice = self.active_menu.addprediction()
             if prediction:
-                self.prediction_service.add_prediction(prediction, use_model=True)
+                self.prediction_service.add_prediction(prediction)
             
             if choice == 'new':
                 continue
@@ -163,7 +163,7 @@ class Controller:
             raise QuitMenuError
 
     def handle_edit_pred_action(self):
-        data = self.prediction_service.get_predictions()
+        data = self.prediction_service.get_predictions(limit=-1)
         if not data:
             raise MissingDataError
 
