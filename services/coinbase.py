@@ -59,6 +59,8 @@ def get_asset_candles(client: RESTClient, product_id: str, granularity: str, sta
         raise ValueError("Granularity must be one of the following: ONE_MINUTE, FIVE_MINUTES, FIFTEEN_MINUTES, THIRTY_MINUTES, ONE_HOUR, TWO_HOUR, SIX_HOUR, ONE_DAY")
     candles_response = client.get_candles(product_id=product_id, start=start_unix, end=end_unix, granularity=granularity, limit=limit)
     candles = candles_response.to_dict()["candles"]
+    for candle in candles:
+        candle['trading_pair'] = product_id
     # timestamp = int(datetime.datetime.now().timestamp())
     # utils.write_data_to_file(utils.get_path_from_cwd(f"{product_id}_candles_{timestamp}.json"), candles)
     return candles
