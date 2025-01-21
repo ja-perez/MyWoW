@@ -5,7 +5,7 @@ import utils
 from ui import Menu, QuitMenuError, CancelMenuError
 from services import PredictionService, PortfolioService
 from database import Database
-import services.coinbase as cb
+import services.coinbase_services as cb
 from inputhandling import InputHandler
 
 class MissingDataError(Exception):

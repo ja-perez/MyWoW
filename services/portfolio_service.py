@@ -3,7 +3,7 @@ from typing import Optional
 from coinbase.rest import RESTClient # type: ignore
 from os import path
 
-import services.coinbase as cb
+import services.coinbase_services as cb
 from database import Database
 from models.portfolio import Portfolio
 import utils.utils

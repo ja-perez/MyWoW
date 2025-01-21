@@ -3,8 +3,8 @@ import os
 from typing import Optional
 
 import utils
-import services.coinbase as cb
-from services.coinbase import Granularity
+import services.coinbase_services as cb
+from services.coinbase_services import Granularity
 from coinbase.rest import RESTClient # type: ignore
 from database import Database
 

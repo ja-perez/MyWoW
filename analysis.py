@@ -1,6 +1,6 @@
 import datetime
 
-import services.coinbase as cb
+import services.coinbase_services as cb
 from database.database import Database
 import utils.utils
 
