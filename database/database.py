@@ -15,6 +15,9 @@ class InvalidValuesError(Exception):
 class InvalidInsertError(Exception):
     pass
 
+class DuplicateInsertError(Exception):
+    pass
+
 class Database:
     def __init__(self, db_name: str = ''):
         self.db_name = db_name
@@ -115,7 +118,7 @@ class Database:
     @check_table
     def insert_one(self, values: list | dict, table_name: Optional[str] = None):
         if not values:
-            raise InvalidInsertError
+            raise InvalidValuesError
         if type(values) == dict:
             table_schema = self.get_row_schema(table_name)
             for key in table_schema:
@@ -130,6 +133,7 @@ class Database:
         duplicate = self.get_rows(table_name=table_name, where_statement=f"WHERE {p_col}={formatted_values[p_index]}")
         if duplicate:
             print(f'Failed INSERT: Duplicate "{p_col}" found.')
+            # raise DuplicateInsertError
             return
 
         query = f"INSERT INTO {table_name} VALUES ({', '.join(formatted_values)})"
@@ -151,7 +155,7 @@ class Database:
     @check_table
     def delete_where(self, values: dict, table_name: Optional[str] = None):
         if not values:
-            raise InvalidInsertError
+            raise InvalidValuesError
 
         formatted_values = self.format_dict_values(values)
         
@@ -227,6 +231,44 @@ class Database:
             col[1] : col[2] for col in res
         }
         return schema
+    
+    @check_table
+    def column_is_unique(self, column_name: str, table_name: Optional[str] = None):
+        query = f"PRAGMA index_list({table_name})"
+        self.cur.execute(query)
+        res = self.cur.fetchall()
+        
+        for unique_col in res:
+            index_name = unique_col[1]
+            query = f"PRAGMA index_info({index_name})"
+            self.cur.execute(query)
+            col_info = self.cur.fetchall()[0]
+            if col_info[-1] == column_name:
+                return True
+
+        return False
+
+    @check_table
+    def get_table_def(self, table_name: Optional[str] = None) -> dict[str, str]:
+        query = f"PRAGMA table_info({table_name})"
+        self.cur.execute(query)
+        res = self.cur.fetchall()
+
+        pk_index, pk_name = self.get_table_primary_key(table_name=table_name)
+        table_def: dict[str, str] = {}
+        for col in res:
+            col_name: str = str(col[1])
+            col_type: str = str(col[2]).upper()
+
+            col_def = col_type
+            if col_name == pk_name:
+                col_def += " PRIMARY KEY"
+            if self.column_is_unique(column_name=col_name, table_name=table_name):
+                col_def += " UNIQUE"
+
+            table_def[col_name] = col_def
+        
+        return table_def
 
     @check_table
     def get_table_primary_key(self, table_name: Optional[str] = None) -> list[int | str]:
@@ -443,6 +485,10 @@ def candles_setup(db: Database):
             "close": "REAL",
             "volume": "REAL",
         }
+        if db.table_exists('candles'):
+            existing_def = db.get_table_def('candles')
+            if existing_def == candles_def:
+                return
         db.create_table("candles", candles_def)
 
         # Seeding db with *candles.json files in data dir
@@ -499,7 +545,7 @@ def MyWoWSetup():
     try:
         # predictions_setup(db)
         # results_setup(db)
-        # candles_setup(db)
+        candles_setup(db)
         # market_trades_setup(db)
         pass
     except InvalidTableNameError as e:
