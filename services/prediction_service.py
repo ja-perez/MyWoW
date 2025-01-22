@@ -7,6 +7,7 @@ import services.coinbase_services as cb
 from services.coinbase_services import Granularity
 from coinbase.rest import RESTClient # type: ignore
 from database.database import Database
+from database.db_setup import MyWoWDatabase
 
 from models.prediction import Prediction
 from models.candles import Candle
@@ -16,8 +17,8 @@ class PredictionService:
         self.client = client if client else cb.get_client()
         self.db = db if db else Database()
         
-        self.prediction_data_path = utils.get_path_from_data_dir("dummy_data.csv")
-        self.prediction_results_path = utils.get_path_from_data_dir("dummy_results.csv")
+        self.prediction_data_path = utils.get_path_from_data_dir("local_predictions.csv")
+        self.prediction_results_path = utils.get_path_from_data_dir("local_results.csv")
 
         self.predictions_updated = False
 
