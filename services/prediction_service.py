@@ -6,7 +6,7 @@ import utils
 import services.coinbase_services as cb
 from services.coinbase_services import Granularity
 from coinbase.rest import RESTClient # type: ignore
-from database import Database
+from database.database import Database
 
 from models.prediction import Prediction
 from models.candles import Candle

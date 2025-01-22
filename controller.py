@@ -4,7 +4,8 @@ import datetime
 import utils
 from ui import Menu, QuitMenuError, CancelMenuError
 from services import PredictionService, PortfolioService
-from database import Database
+from database.database import Database
+from database.db_setup import MyWoWDatabase, DBMSConstructionError, TableConstructionError, InvalidLocalStorageError
 import services.coinbase_services as cb
 from inputhandling import InputHandler
 
@@ -28,9 +29,11 @@ class Controller:
 
         self.input_handler = InputHandler(stdscr)
         client = cb.get_client()
+
         self.db = Database('mywow.db')
         self.prediction_service = PredictionService(client, self.db)
         self.portfolio_service = PortfolioService(client, self.db)
+        self.dbms = MyWoWDatabase(db_name='mywow.db')
 
         self.setup_menus()
         self.load_state()
