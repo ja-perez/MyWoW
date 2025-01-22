@@ -367,6 +367,7 @@ class Menu:
 
         return choice
 
+    @menu_exception_handler
     def portfoliosummary(self, portfolio: Portfolio):
         # Balance section sub-title
         balance_header = f"BALANCES\n"
@@ -385,7 +386,7 @@ class Menu:
         positions_header = f"{'Symbol':<15} {'Current Price':>15} {'Owned Quantity':>15} {'Owned Value':>15}\n"
         self.display_header(positions_header)
         # Active positions section data
-        for position in portfolio.active_positions:
+        for position in portfolio.active_positions[:5]:
             position_out = f"{position.symbol:<15} {position.curr_price:>15.2f} {position.quantity:>15.2f} {position.value:>15.2f}\n"
             self.stdscr.addstr(position_out)
 
