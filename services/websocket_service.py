@@ -12,8 +12,8 @@ import os
 class WebsocketService:
     WS_URL = "wss://advanced-trade-ws.coinbase.com"
     ALGORITHM = 'ES256'
-    JWT_EXPIRATION = 120
-    MAX_CONNECTION_DURATION = 5 * 120
+    MAX_JWT_DURATION = 120          # 2 mins | 120 secs
+    MAX_WS_CONN_DURATION = 300      # 5 mins | 300 secs
     class Channel:
         level2 = 'level2'
         user = 'user'
@@ -32,10 +32,19 @@ class WebsocketService:
         self.KEY = api_key 
         self.SECRET = api_secret
 
+        self.curr_jwt: str = ""
+        self.last_jwt_update: datetime.datetime = datetime.datetime.now()
         self.opened_connections: list[dict[str, str | list]] = []
 
     def gen_jwt(self) -> str:
         return jwt_generator.build_ws_jwt(self.KEY, self.SECRET)
+
+    def get_jwt(self) -> str:
+        if not self.curr_jwt or (datetime.datetime.now() - self.last_jwt_update).seconds >= self.MAX_JWT_DURATION:
+            self.curr_jwt = self.gen_jwt()
+            self.last_jwt_update = datetime.datetime.now()
+
+        return self.curr_jwt
 
     def on_open(self, ws):
         self.subscribe(ws=ws, channel=self.Channel.heartbeats)
@@ -52,15 +61,15 @@ class WebsocketService:
     def on_close(self, ws):
         print("Connection closed")
 
-    def connect(self):
-        self.ws = websocket.WebSocketApp(
+    def create_socket(self):
+        ws = websocket.WebSocketApp(
             self.WS_URL,
             on_open=self.on_open,
             on_message=self.on_message,
             on_error=self.on_error,
             on_close=self.on_close,
             )
-        self.ws.run_forever()
+        return ws
 
     def subscribe(self, ws: websocket.WebSocketApp, channel: str, products_ids: Optional[list[str]] = None, jwt: Optional[str] = None):
         msg: dict[str, str | list[str]] = {
@@ -75,6 +84,7 @@ class WebsocketService:
         else:
             msg['jwt'] = self.gen_jwt()
 
+        ws = self.create_socket()
         ws.send(json.dumps(msg))
         self.opened_connections.append(msg)
     
@@ -102,33 +112,46 @@ class WebsocketService:
             oc = self.opened_connections.pop()
             self.unsubscribe(channel=oc['channel'], products_ids=oc.get('products_ids', None), jwt=oc.get('jwt', None))
 
+def test_on_open(ws):
+    msg = {
+        'type': 'subscribe',
+        'product_ids': ['BTC-USD'],
+        'channel': 'ticker'
+    }
+    ws.send(json.dumps(msg))
+
+count = 0
+still_subbed = True 
+def test_on_message(ws, msg):
+    global count, still_subbed
+    data = json.loads(msg)
+    if data['channel']:
+        data = json.loads(msg)
+    else:
+        data = 'No data'
+        ws.close()
+    print('Still alive...' + ' ' + str(count))
+    print(data)
+    count += 1
+
+def test_on_error(ws, e):
+    print(e)
+
+def test_on_close(ws, status_code, msg):
+    print(f"closing w/ status code:{status_code}\nmsg:{msg}")
+
 def main():
     config = dotenv_values('.env')
     key = config['COINBASE_API_KEY']
     secret = config['COINBASE_API_SECRET']
 
-    with closing(websocket.create_connection(WebsocketService.WS_URL)) as conn:
-        sub_msg = {
-            'type': 'subscribe',
-            'product_ids': ['BTC-USD'],
-            'channel': 'ticker',
-        }
-        conn.send(json.dumps(sub_msg))
-        print("SUBSCRIBED", "*" * 50)
-        print(conn.recv(), '\n')
-        print(conn.recv(), '\n')
-        print(conn.recv(), '\n')
-        print(conn.recv(), '\n')
-        un_msg = {
-            'type': 'unsubscribe',
-            'channel': 'ticker',
-            'product_ids': ['BTC-USD'],
-        }
-        conn.send(json.dumps(un_msg))
-        print("UNSUBSCRIBED", "*" * 50)
-        print(conn.recv(), '\n')
-        print(conn.recv(), '\n')
-        #print(conn.recv(), '\n')
+    wservice = WebsocketService(key, secret)
+    # Creates thread and websocket then sends the subscription request to the server
+    #   - Messages are 
+    wservice.subscribe(channel=WebsocketService.Channel.candles, products_ids=['BTC-USD'])
+
+
+    # ws = websocket.WebSocketApp(WebsocketService.WS_URL, on_open=test_on_open, on_message=test_on_message, on_close=test_on_close, on_error=test_on_error)
 
 if __name__=='__main__':
     main()
