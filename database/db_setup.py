@@ -61,7 +61,7 @@ class MyWoWDatabase:
             "close": "REAL",
             "volume": "REAL",
             },
-        'market_trades': {
+        'market_trade': {
             "trade_id": "TEXT PRIMARY KEY UNIQUE",
             "trading_pair": "TEXT",
             "price": "REAL",

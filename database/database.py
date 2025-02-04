@@ -21,7 +21,8 @@ class DuplicateInsertError(Exception):
 class Database:
     def __init__(self, db_name: str = ''):
         self.db_name = db_name
-        self.conn = sqlite3.connect(db_name)
+        db_path = path.join(data_dir, db_name)
+        self.conn = sqlite3.connect(db_path)
 
         self.cur = self.conn.cursor()
         self.table_name = ''
@@ -545,7 +546,7 @@ def MyWoWSetup():
     try:
         # predictions_setup(db)
         # results_setup(db)
-        candles_setup(db)
+        # candles_setup(db)
         # market_trades_setup(db)
         pass
     except InvalidTableNameError as e:
