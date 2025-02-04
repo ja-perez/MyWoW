@@ -53,7 +53,7 @@ class PredictionService:
         if self.db.table_exists('results'):
             limit = -1 if limit < 0 else start_index + limit
             res = self.db.get_rows('results', limit=limit)
-            results = [Prediction(data=result_data) for result_data in res]
+            results = [Prediction(data=result_data) for result_data in res[start_index:]]
             return results 
         else:
             file_rows = utils.get_csv_data_from_file(self.prediction_results_path)
