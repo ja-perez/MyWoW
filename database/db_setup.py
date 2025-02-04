@@ -26,6 +26,65 @@ class MyWoWDatabase:
     local_predictions_header = ['symbol', 'trading_pair', 'start_date', 'end_date', 'start_price', 'end_price', 'buy_price', 'sell_price']
     local_results_header = local_predictions_header + ['close_price']
 
+    table_definitions = {
+        'predictions': {
+            "prediction_id": "TEXT PRIMARY KEY UNIQUE",
+            "symbol": "TEXT",
+            "trading_pair": "TEXT",
+            "start_date": "DATE",
+            "end_date": "DATE",
+            "start_price": "REAL",
+            "end_price": "REAL",
+            "buy_price": "REAL",
+            "sell_price": "REAL",
+            },
+        'results': {
+            "prediction_id": "TEXT PRIMARY KEY UNIQUE",
+            "symbol": "TEXT",
+            "trading_pair": "TEXT",
+            "start_date": "DATE",
+            "end_date": "DATE",
+            "start_price": "REAL",
+            "end_price": "REAL",
+            "buy_price": "REAL",
+            "sell_price": "REAL",
+            "close_price": "REAL",
+            },
+        'candles': {
+            "candle_id": "TEXT PRIMARY KEY UNIQUE",
+            "date": "DATE",
+            "start": "INT",
+            "trading_pair": "TEXT",
+            "open": "REAL",
+            "high": "REAL",
+            "low": "REAL",
+            "close": "REAL",
+            "volume": "REAL",
+            },
+        'market_trades': {
+            "trade_id": "TEXT PRIMARY KEY UNIQUE",
+            "trading_pair": "TEXT",
+            "price": "REAL",
+            "size": "REAL",
+            "time": "DATETIME",
+            "side": "TEXT",
+            "bid": "REAL",
+            "ask": "REAL",
+            "exchange": "TEXT"
+            },
+        'market_candles': {
+            "candle_id": "TEXT PRIMARY KEY UNIQUE",
+            "time": "DATETIME",
+            "start": "INT",
+            "trading_pair": "TEXT",
+            "open": "REAL",
+            "high": "REAL",
+            "low": "REAL",
+            "close": "REAL",
+            "volume": "REAL",
+            }
+    }
+
     def __init__(self, db_name: str = "mywow.db"):
         self.db_name = db_name
         self.db = Database(db_name)
@@ -155,7 +214,7 @@ class MyWoWDatabase:
             "sell_price": "REAL",
         }
         try:
-            self.create_table(table_name='predictions', table_definition=predictions_def)
+            self.create_table(table_name='predictions', table_definition=self.table_definitions['predictions'])
         except InvalidTableNameError as ITE:
             raise TableConstructionError
         except InvalidValuesError:
@@ -179,7 +238,7 @@ class MyWoWDatabase:
             "close_price": "REAL",
         }
         try:
-            self.create_table(table_name='results', table_definition=results_def)
+            self.create_table(table_name='results', table_definition=self.table_definitions['results'])
         except InvalidTableNameError:
             raise TableConstructionError
         except InvalidValuesError:
@@ -202,7 +261,7 @@ class MyWoWDatabase:
             "volume": "REAL",
         }
         try:
-            self.create_table(table_name='candles', table_definition=candles_def)
+            self.create_table(table_name='candles', table_definition=self.table_definitions['candles'])
         except InvalidTableNameError:
             raise TableConstructionError
         except InvalidValuesError:
@@ -238,8 +297,8 @@ class MyWoWDatabase:
             "volume": "REAL",
         }
         try:
-            self.create_table(table_name="market_trade", table_definition=market_trades_def)
-            self.create_table(table_name="market_candles", table_definition=market_candles_def)
+            self.create_table(table_name="market_trade", table_definition=self.table_definitions['market_trade'])
+            self.create_table(table_name="market_candles", table_definition=self.table_definitions['market_candles'])
         except InvalidTableNameError:
             raise TableConstructionError
         except InvalidValuesError:
