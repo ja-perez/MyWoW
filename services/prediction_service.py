@@ -1,11 +1,11 @@
 import datetime
 import os
 from typing import Optional
+from coinbase.rest import RESTClient # type: ignore
 
 import utils
 import services.coinbase_services as cb
 from services.coinbase_services import Granularity
-from coinbase.rest import RESTClient # type: ignore
 from database.database import Database
 from database.db_setup import MyWoWDatabase
 
@@ -171,7 +171,7 @@ class PredictionService:
             rows = self.db.get_rows('candles', where_statement=where_conditions)
         else:
             output_filename = f'{start_date.strftime("%Y%m%d")}_{end_date.strftime("%Y%m%d")}_{trading_pair}_candles.json'
-            output_file_path = utils.get_path_from_data_dir(output_filename)
+            output_file_path = utils.get_path_from_data_dir('candles', output_filename)
 
             if os.path.exists(output_file_path):
                 rows = utils.get_json_data_from_file(output_file_path)
