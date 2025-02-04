@@ -2,7 +2,7 @@ import curses
 import datetime
 from typing import Callable, Optional, Any
 
-from inputhandling import InputHandler, QuitInputError, CancelInputError, RefreshInputError
+from inputhandling import InputHandler, QuitInputError, CancelInputError, RefreshInputError, NextPageException, PreviousPageException
 from models.prediction import Prediction, MissingDataError, InvalidDataError
 from models.candles import Candle
 from models.portfolio import Portfolio
@@ -26,7 +26,6 @@ class Menu:
         self.input_handler = input_handler if input_handler else InputHandler(stdscr)
         self.options = options if options else {}
         self.has_options = True if options else False
-
         if not stdscr:
             raise Exception("stdscr cannot be None")
 
@@ -34,7 +33,7 @@ class Menu:
         def wrapper(self, *args, **kwargs):
             self.stdscr.clear()
             menu_title = f"{self.title}\n\n"
-            special_keys = '(q to quit, c to cancel)'
+            special_keys = '(q to quit, c to cancel, n for next, p for previous)'
             if curses.has_colors() and curses.can_change_color():
                 self.stdscr.addstr(0, 0, menu_title, curses.A_BOLD)
             else:
@@ -52,6 +51,10 @@ class Menu:
             except QuitMenuError:
                 raise
             except CancelMenuError:
+                raise
+            except NextPageException:
+                raise
+            except PreviousPageException:
                 raise
         return wrapper
 
@@ -74,7 +77,7 @@ class Menu:
             self.stdscr.hline('-', x)
             self.stdscr.addstr(y + 2, 0, '\n')
 
-    def display_options(self) -> Any:
+    def display_options(self, pagination: bool = False) -> Any:
         y, _ = self.stdscr.getyx()
         y += 1
 
@@ -90,7 +93,7 @@ class Menu:
                     self.stdscr.addstr(f"  {self.options[key]}\n")
 
             try:
-                updated_choice = self.input_handler.get_choice(choice, options_count)
+                updated_choice = self.input_handler.get_choice(choice, options_count, pagination=pagination)
                 if updated_choice == curses.KEY_ENTER:
                     break
                 else:
@@ -295,7 +298,7 @@ class Menu:
         }
         self.options = predictions_output
 
-        prediction = self.display_options()
+        prediction = self.display_options(pagination=True)
 
         self.stdscr.move(y, 0)
         self.stdscr.clrtobot()
