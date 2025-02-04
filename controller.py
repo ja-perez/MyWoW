@@ -7,7 +7,7 @@ from services import PredictionService, PortfolioService
 from database.database import Database
 from database.db_setup import MyWoWDatabase, DBMSConstructionError, TableConstructionError, InvalidLocalStorageError
 import services.coinbase_services as cb
-from inputhandling import InputHandler
+from inputhandling import InputHandler, NextPageException, PreviousPageException
 
 class MissingDataError(Exception):
     pass
@@ -166,12 +166,10 @@ class Controller:
             raise QuitMenuError
 
     def handle_edit_pred_action(self):
-        data = self.prediction_service.get_predictions(limit=-1)
-        if not data:
-            raise MissingDataError
-
         while True:
-            prediction = self.active_menu.selectprediction(data)
+            prediction = self.handle_selection(data_source='predictions')
+            if not prediction:
+                raise MissingDataError
             res = self.active_menu.editprediction(prediction)
 
             if res == "select_prediction":
@@ -189,15 +187,12 @@ class Controller:
             self.active_menu = self.menus['main']
 
     def handle_pred_overview_action(self):
-        data = self.prediction_service.get_predictions()
-        if not data:
-            raise MissingDataError
-
         while True:
-            prediction = self.active_menu.selectprediction(data)
-            candles = self.prediction_service.get_candles(prediction.trading_pair, prediction.start_date, prediction.end_date)
-            res = self.active_menu.predictionoverview(prediction, candles)
+            selection = self.handle_selection(data_source='predictions')
+            if not selection:
+                raise MissingDataError
 
+            res = self.handle_overviews(selection=selection)
             if res == "select_prediction":
                 continue
             if res in self.menus:
@@ -205,24 +200,52 @@ class Controller:
                 break
 
     def handle_result_overview_action(self):
-        data = self.prediction_service.get_results()
-        if not data:
-            raise MissingDataError
-
         while True:
-            result = self.active_menu.selectprediction(data)
-            candles = self.prediction_service.get_candles(result.trading_pair, result.start_date, result.end_date)
-
-            if not candles:
+            selection = self.handle_selection(data_source='results')
+            if not selection:
                 raise MissingDataError
 
-            res = self.active_menu.resultoverview(result, candles)
-
+            res = self.handle_overviews(selection=selection)
             if res == "select_prediction":
                 continue
             if res in self.menus:
                 self.active_menu = self.menus[res]
                 break
+
+    def handle_selection(self, data_source):
+        curr_index = 0
+        limit = 10
+        prev_data = None
+        while True:
+            if data_source == 'results':
+                data = self.prediction_service.get_results(start_index=curr_index, limit=limit)
+            if data_source == 'predictions':
+                data = self.prediction_service.get_predictions(start_index=curr_index, limit=limit)
+
+            if not data:
+                data = prev_data
+                curr_index -= 10
+            else:
+                prev_data = data
+
+            try:
+                selection = self.active_menu.selectprediction(data)
+                return selection
+
+            except NextPageException:
+                curr_index += limit
+            except PreviousPageException:
+                curr_index = max(0, curr_index - limit)
+            except MissingDataError:
+                raise
+
+    def handle_overviews(self, selection):
+        candles = self.prediction_service.get_candles(selection.trading_pair, selection.start_date, selection.end_date)
+
+        if not candles:
+            raise MissingDataError
+
+        return self.active_menu.resultoverview(selection, candles)
 
     def handle_portfolio_action(self):
         data = self.portfolio_service.get_portfolio()
@@ -236,7 +259,6 @@ class Controller:
             if res in self.menus:
                 self.active_menu = self.menus[res]
                 break
-        
 
     def handle_test_action(self):
         # if res in self.menus:

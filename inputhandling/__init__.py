@@ -1,1 +1,1 @@
-from .input_handler import InputHandler, InvalidInputError, QuitInputError, CancelInputError, RefreshInputError
+from .input_handler import InputHandler, InvalidInputError, QuitInputError, CancelInputError, RefreshInputError, NextPageException, PreviousPageException

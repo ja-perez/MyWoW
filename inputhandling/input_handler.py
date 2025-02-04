@@ -22,6 +22,13 @@ class RefreshInputError(Exception):
     """Raised when input process is refreshed."""
     pass
 
+class NextPageException(Exception):
+    """Raised by input treated as a special key"""
+    pass
+class PreviousPageException(Exception):
+    """Raised by input treated as a special key"""
+    pass
+
 class InputHandler:
     def __init__(self, stdscr: curses.window):
         self.stdscr = stdscr
@@ -132,7 +139,7 @@ class InputHandler:
 
         return return_val
 
-    def get_choice(self, curr_choice: int, options_cnt: int) -> int:
+    def get_choice(self, curr_choice: int, options_cnt: int, pagination: bool = False) -> int:
         while True:
             try:
                 input_key = self.stdscr.getch()
@@ -148,7 +155,18 @@ class InputHandler:
                     raise QuitInputError
                 if input_key_as_char == 'c':
                     raise CancelInputError
+                if input_key_as_char == 'n' and pagination:
+                    raise NextPageException
+                if input_key_as_char == 'p' and pagination:
+                    raise PreviousPageException
+
             except QuitInputError:
+                raise
+            except CancelInputError:
+                raise
+            except NextPageException:
+                raise
+            except PreviousPageException:
                 raise
 
 def main(stdscr):
