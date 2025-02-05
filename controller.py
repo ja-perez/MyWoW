@@ -31,9 +31,9 @@ class Controller:
         client = cb.get_client()
 
         self.db = Database('mywow.db')
-        self.prediction_service = PredictionService(client, self.db)
-        self.portfolio_service = PortfolioService(client, self.db)
         self.dbms = MyWoWDatabase(db_name='mywow.db')
+        self.prediction_service = PredictionService(client, self.db, self.dbms)
+        self.portfolio_service = PortfolioService(client, self.db)
 
         self.setup_menus()
         self.load_state()
