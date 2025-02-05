@@ -19,7 +19,7 @@ class DuplicateInsertError(Exception):
     pass
 
 class Database:
-    def __init__(self, db_name: str = ''):
+    def __init__(self, db_name: str):
         self.db_name = db_name
         db_path = path.join(data_dir, db_name)
         self.conn = sqlite3.connect(db_path)
