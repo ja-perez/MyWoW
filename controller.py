@@ -5,7 +5,7 @@ import utils
 from ui import Menu, QuitMenuError, CancelMenuError
 from services import PredictionService, PortfolioService
 from database.database import Database
-from database.db_setup import MyWoWDatabase, DBMSConstructionError, TableConstructionError, InvalidLocalStorageError
+from database.db_setup import MyWoWDatabase, DBMSConstructionError, TableConstructionError, InvalidLocalStorageError, InvalidDataSourceError
 import services.coinbase_services as cb
 from inputhandling import InputHandler, NextPageException, PreviousPageException
 
@@ -108,20 +108,16 @@ class Controller:
     def handle_mainmenu_action(self):
         choice = self.active_menu.display_options()
         if choice == "preds":
-            self.prediction_service.update_predictions()
             self.active_menu = self.menus[choice]
         if choice == "results":
-            self.prediction_service.update_predictions()
             self.active_menu = self.menus[choice]
         if choice == "add_pred":
             self.active_menu = self.menus[choice]
         if choice == "edit_pred":
             self.active_menu = self.menus[choice]
         if choice == "pred_overview":
-            self.prediction_service.update_predictions()
             self.active_menu = self.menus[choice]
         if choice == "result_overview":
-            self.prediction_service.update_predictions()
             self.active_menu = self.menus[choice]
         if choice == 'portfolio':
             self.active_menu = self.menus[choice]
