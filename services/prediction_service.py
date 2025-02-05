@@ -13,66 +13,28 @@ from models.prediction import Prediction
 from models.candles import Candle
 
 class PredictionService:
-    def __init__(self, client: RESTClient = None, db: Database | None = None):
+    def __init__(self, client: Optional[RESTClient] = None, db: Optional[Database] = None, dbms: Optional[MyWoWDatabase] = None):
         self.client = client if client else cb.get_client()
-        self.db = db if db else Database()
+        self.db = db if db else Database('mywow.db')
+        self.dbms = dbms if dbms else MyWoWDatabase()
         
         self.prediction_data_path = utils.get_path_from_data_dir("local_predictions.csv")
         self.prediction_results_path = utils.get_path_from_data_dir("local_results.csv")
 
         self.predictions_updated = False
+        self.update_predictions()
 
     def get_predictions(self, start_index: int = 0, limit: int = 10) -> list[Prediction]:
-        # TODO: See ui/menu.py/Menu/selectprediction
-        if self.db.table_exists('predictions'):
-            # use start_index to offset limit to return next set of rows
-            limit = -1 if limit < 0 else start_index + limit
-            res = self.db.get_rows('predictions', limit=limit)
-            predictions = [Prediction(data=result_data) for result_data in res[start_index:]]
-            return predictions
-        else:
-            file_rows = utils.get_csv_data_from_file(self.prediction_data_path)
-            data = []
-            end_index = len(file_rows) if limit < 0 else start_index + limit
-            for row in file_rows[start_index:end_index]:
-                pred_data = {
-                    "symbol": row[0],
-                    "trading_pair": row[1],
-                    "start_date": row[2],
-                    "end_date": row[3],
-                    "start_price": float(row[4]),
-                    "end_price": float(row[5]),
-                    "buy_price": float(row[6]),
-                    "sell_price": float(row[7])
-                }
-                data.append(Prediction(pred_data))
-            return data
+        start_index = 0 if start_index < 0 else start_index # TODO: Handle start_index being greater than count of predictions (predictions object? count query? TBD)
+        limit = -1 if limit < 0 else start_index + limit # offsets limit as queryed records are those UPTO start_index + desired limit count
+        result = self.dbms.get_items(table_name='predictions', start_index=start_index, limit=limit)
+        return [Prediction(data=result_data) for result_data in result]
 
     def get_results(self, start_index: int = 0, limit: int = 10) -> list[Prediction]:
-        # TODO: See ui/menu.py/Menu/selectprediction
-        if self.db.table_exists('results'):
-            limit = -1 if limit < 0 else start_index + limit
-            res = self.db.get_rows('results', limit=limit)
-            results = [Prediction(data=result_data) for result_data in res[start_index:]]
-            return results 
-        else:
-            file_rows = utils.get_csv_data_from_file(self.prediction_results_path)
-            data = []
-            end_index = len(file_rows) if limit < 0 else start_index + limit
-            for row in file_rows[start_index: end_index]:
-                result_data = {
-                    "symbol": row[0],
-                    "trading_pair": row[1],
-                    "start_date": row[2],
-                    "end_date": row[3],
-                    "start_price": float(row[4]),
-                    "end_price": float(row[5]),
-                    "buy_price": float(row[6]),
-                    "sell_price": float(row[7]),
-                    "close_price": float(row[8]),
-                }
-                data.append(Prediction(result_data))
-            return data
+        start_index = 0 if start_index < 0 else start_index # TODO: Handle start_index being greater than count of predictions (predictions object? count query? TBD)
+        limit = -1 if limit < 0 else start_index + limit # offsets limit as queryed records are those UPTO start_index + desired limit count
+        result = self.dbms.get_items(table_name='results', start_index=start_index, limit=limit)
+        return [Prediction(data=result_data) for result_data in result]
 
     def update_candles(self, prediction: Prediction):
         candles = cb.get_asset_candles(self.client, prediction.trading_pair, cb.Granularity.ONE_DAY, prediction.start_date, prediction.end_date)
@@ -86,7 +48,6 @@ class PredictionService:
 
         todays_date = datetime.date.today()
         predictions = self.get_predictions(limit=-1)
-        new_data = []
         for pred in predictions:
             self.update_candles(pred)
             candles = self.get_candles(pred.trading_pair, pred.start_date, pred.end_date)
@@ -96,88 +57,31 @@ class PredictionService:
                 pred.close_price = candles[0].close_price
                 self.add_result(pred)
                 self.remove_prediction(pred)
-            else:
-                new_data.append(pred)
-
-        if not self.db.table_exists('predictions'):
-            utils.write_many_data_to_csv_file(self.prediction_data_path, new_data)
-            
-        # TODO: Delete below after testing that above works
-        # if self.db.table_exists('predictions'):
-        #     for pred in predictions:
-        #         candles = self.get_candles(pred.trading_pair, pred.start_date, pred.end_date)
-        #         for candle in candles:
-        #             self.db.insert_one(table_name='candles', values=candle.get_values())
-        #             # self.upload_candle(pred.trading_pair, candle)
-
-        #         if todays_date > pred.end_date.date():
-        #             candles.sort(key=lambda x: x.date, reverse=True)
-        #             pred.close_price = candles[0].close_price
-        #             self.add_result(pred)
-        #             self.remove_prediction(pred)
-        # else:
-        #     new_data = []
-        #     for pred in predictions:
-        #         if todays_date > pred.end_date.date():
-        #             candles = self.get_candles(pred.trading_pair, pred.start_date, pred.end_date)
-        #             pred.close_price = candles[0].close_price
-        #             utils.add_data_to_csv_file(self.prediction_results_path, pred.to_json())
-        #             # candle = cb.get_asset_candles(self.client, pred.trading_pair, Granularity.ONE_DAY, pred.start_date, pred.end_date)
-        #             # pred.close_price = float(candle[0]['close'])
-        #         else:
-        #             new_data.append(pred)
-        #     utils.write_many_data_to_csv_file(self.prediction_data_path, new_data)
 
         self.predictions_updated = True
 
     def add_result(self, result: Prediction):
-        if self.db.table_exists('results'):
-            self.db.insert_one(table_name='results', values=result.result_upload())
-        else:
-            utils.add_data_to_csv_file(self.prediction_results_path, result.result_upload())
+        self.dbms.add_item(table_name='results', values=result.result_upload())
 
     def add_prediction(self, prediction: Prediction):
-        if self.db.table_exists('predictions'):
-            self.db.insert_one(table_name='predictions', values=prediction.prediction_upload())
-        else:
-            utils.add_dict_to_csv_file(self.prediction_data_path, prediction.to_json())
-
-        self.predictions_updated = False
+        self.dbms.add_item(table_name='predictions', values=prediction.prediction_upload())
+        self.update_predictions()
 
     def remove_prediction(self, pred_to_remove: Prediction):
-        if self.db.table_exists('predictions'):
-            self.db.delete_where(table_name='predictions', values={'symbol':pred_to_remove.symbol, 'start_date':pred_to_remove.view_start_date()})
-        else:
-            curr_predictions: list[Prediction] = self.get_predictions(limit=-1)
-            new_data = []
-            for pred in curr_predictions:
-                if pred.symbol == pred_to_remove.symbol and pred.start_date == pred_to_remove.start_date:
-                    continue
-                new_data.append(pred.to_json())
-            utils.write_many_data_to_csv_file(self.prediction_data_path, new_data)
+        self.dbms.remove_item(table_name='predictions', values={'symbol':pred_to_remove.symbol, 'start_date':pred_to_remove.view_start_date()})
 
     def get_candles(self, trading_pair: str, start_date: datetime.datetime, end_date: datetime.datetime) -> list[Candle]:
-        if self.db.table_exists('candles'):
-            where_conditions = self.db.build_where(
-                eq={
-                    'trading_pair':f"'{trading_pair}'"
-                },
-                btwn={
-                    'date':{
-                        'min':f"'{datetime.datetime.strftime(start_date, "%Y-%m-%d")}'",
-                        'max':f"'{datetime.datetime.strftime(end_date, "%Y-%m-%d")}'",
-                    }
-                })
-            rows = self.db.get_rows('candles', where_statement=where_conditions)
-        else:
-            output_filename = f'{start_date.strftime("%Y%m%d")}_{end_date.strftime("%Y%m%d")}_{trading_pair}_candles.json'
-            output_file_path = utils.get_path_from_data_dir('candles', output_filename)
-
-            if os.path.exists(output_file_path):
-                rows = utils.get_json_data_from_file(output_file_path)
-            else:
-                rows = cb.get_asset_candles(self.client, trading_pair, Granularity.ONE_DAY, start_date, end_date)
-                utils.write_json_data_to_file(output_file_path, rows)
+        where_statement = self.db.build_where(
+            eq={
+                'trading_pair':f"'{trading_pair}'"
+            },
+            btwn={
+                'date':{
+                    'min':f"'{datetime.datetime.strftime(start_date, "%Y-%m-%d")}'",
+                    'max':f"'{datetime.datetime.strftime(end_date, "%Y-%m-%d")}'",
+                }
+            })
+        rows = self.dbms.get_items(table_name='candles', where_statement=where_statement)
 
         if not rows:
             return []
