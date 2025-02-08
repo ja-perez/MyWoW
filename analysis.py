@@ -1,18 +1,15 @@
 import datetime
+from coinbase.rest import RESTClient # type: ignore
+from math import ceil
 
 import services.coinbase_services as cb
 from database.database import Database
-import utils.utils
+from database.db_setup import MyWoWDatabase
+from models import Candle, MarketTrade
 
 client = cb.get_client()
 db = Database('mywow.db')
-
-trading_pair = 'BTC-USD'
-candles: dict[str, dict] = {
-    "2024-12-1": {}, # December
-    "2024-11-1": {}, # November
-    "2024-10-1": {}  # October
-}
+dbms = MyWoWDatabase('mywow.db')
 
 def fetch_candles(trading_pair: str, candles: dict[str, dict]):
     for start_date_string in candles:
@@ -45,69 +42,24 @@ def fetch_candles(trading_pair: str, candles: dict[str, dict]):
             ]
             db.insert_one(values=insert_data, table_name='candles')
 
-# fetch_candles(trading_pair, candles)
+#######################################################################################################################
 
+trading_pair = 'BTC-USD'
+start = datetime.datetime.strptime('2025-02-05T12:00:00:00', '%Y-%m-%dT%H:%M:%S:%f')
+end = datetime.datetime.strptime('2025-02-05T16:00:00:00', '%Y-%m-%dT%H:%M:%S:%f')
 
-first_peak = [datetime.datetime(2025, 1, 16, 3, 10, 0), datetime.datetime(2025, 1, 16, 4, 15, 0)]
-second_peak = [datetime.datetime(2025, 1, 15, 14, 0, 0), datetime.datetime(2025, 1, 15, 15, 0, 0)]
-product_id = "BTC-USD"
+time_delta = end - start
+time_delta_in_seconds = ceil(time_delta.seconds + time_delta.days * 24 * 3600 + time_delta.microseconds / 1e6)
 
-def fetch_market_trades(product_id: str, start_time: datetime.datetime, end_time: datetime.datetime, get_candles: bool=False):
-    start_unix = str(int(start_time.timestamp()))
-    end_unix = str(int(end_time.timestamp()))
-    market_trades = client.get_market_trades(product_id, 1000, start_unix, end_unix)
-    for trade in market_trades['trades']:
-        trade_id = trade['trade_id']
-        trading_pair = trade['product_id']
-        price = float(trade['price'])
-        size = float(trade['size']) 
-        time = trade['time']
-        side = trade['side']
-        bid = float(trade['bid']) if trade['bid'] else 0
-        ask = float(trade['ask']) if trade['ask'] else 0
-        exchange = trade['exchange'] if trade['exchange'] else 'unknown'
-
-        insert_data = [
-            trade_id,
-            trading_pair,
-            price,
-            size,
-            time,
-            side,
-            bid,
-            ask,
-            exchange
-        ]
-        db.insert_one(values=insert_data, table_name="market_trade")
-
-    if get_candles:
-        fetch_market_trade_candles(product_id, start_time, end_time)
-
-def fetch_market_trade_candles(product_id: str, start_time: datetime.datetime, end_time: datetime.datetime):
-    candles = cb.get_asset_candles(client, product_id, cb.Granularity.ONE_MINUTE, start_time, end_time)
-    for candle in candles:
-        start = int(candle['start'])
-        date = datetime.datetime.fromtimestamp(start).isoformat()
-        candle_open = float(candle['open'])
-        high = float(candle['high'])
-        low = float(candle['low'])
-        close = float(candle['close'])
-        volume = float(candle['volume'])
-        symbol = product_id.split('-')[0]
-        id = f"{symbol}-{start}"
-
-        insert_data = [
-            id,
-            date,
-            start,
-            product_id,
-            candle_open,
-            high,
-            low,
-            close,
-            volume
-        ]
-        db.insert_one(values=insert_data, table_name='market_candles')
-
-# fetch_market_trades(product_id, first_peak[0], first_peak[1])
-fetch_market_trade_candles(product_id, first_peak[0], first_peak[1])
+def fetch_and_upload_data(client: RESTClient, trading_pair: str, start_time: datetime.datetime, end_time: datetime.datetime):
+    # fetch all market trades between time range and upload to db
+    market_trades = cb.fetch_market_trades(client, trading_pair, start_time, end_time, cb.CANDLES_LIMIT_MAX)
+    for market_trade_data in market_trades:
+        market_trade = MarketTrade(market_trade_data)
+        dbms.add_item(table_name='market_trade', values=market_trade.get_values())
+    
+    # fetch candles between same time range as market trades and upload to db
+    candles = cb.fetch_market_trade_candles(client, trading_pair, start_time, end_time, cb.CANDLES_LIMIT_MAX)
+    for candle_data in candles:
+        candle = Candle(candle_data)
+        dbms.add_item(table_name='market_candles', values=candle.get_values(market_trade_candle=True))
