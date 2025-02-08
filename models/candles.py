@@ -32,10 +32,10 @@ class Candle:
             return self.date.isoformat()
         return "XXXX-XX-XXTXX:XX:XXZ"
 
-    def get_values(self) -> list[str | float]:
+    def get_values(self, market_trade_candle=False) -> list[str | float]:
         return [
             self.candle_id,
-            self.view_date(),
+            self.view_iso_date() if market_trade_candle else self.view_date(),
             self.start,
             self.trading_pair,
             self.open_price,
