@@ -57,3 +57,16 @@ class Candle:
             'close': str(self.close_price),
             'volume': str(self.volume)
         }
+
+    def to_dict(self) -> dict:
+        return {
+            'candle_id': self.candle_id,
+            'date': self.date,
+            'start': self.start,
+            'trading_pair': self.trading_pair,
+            'open': self.open_price,
+            'high': self.high_price,
+            'low': self.low_price,
+            'close': self.close_price,
+            'volume': self.volume
+        }
