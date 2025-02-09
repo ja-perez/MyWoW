@@ -200,7 +200,7 @@ class Database:
         return f"WHERE {' AND '.join(where_conditions)}"
 
     @check_table
-    def get_rows(self, table_name: Optional[str] = None, limit: int = 20, where_statement: str = '', order_by_statement: str = '', headers: Optional[list[str]] = None) -> list[ dict[ str, str | float | int | datetime.datetime ] ]:
+    def get_rows(self, table_name: Optional[str] = None, limit: int = -1, where_statement: str = '', order_by_statement: str = '', headers: Optional[list[str]] = None) -> list[ dict[ str, str | float | int | datetime.datetime ] ]:
         if headers:
             header_query = ', '.join(headers)
         else:
