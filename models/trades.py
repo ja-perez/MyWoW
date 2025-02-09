@@ -1,24 +1,24 @@
 import datetime
 
 class MarketTrade:
-    def __init__(self, init_data: dict):
-        self.data = init_data
+    def __init__(self, data: dict):
+        self.init_data = data
 
-        self.trade_id: int = int(self.data['trade_id'])
-        self.trading_pair: str = self.data['product_id']
+        self.trade_id: str = self.init_data['trade_id']
+        self.trading_pair: str = self.init_data.get('product_id', self.init_data['trading_pair'])
         self.symbol: str = self.trading_pair.split('-')[0]
 
-        self.price = float(self.data['price'])
-        self.size = float(self.data['size'])
+        self.price = float(self.init_data['price'])
+        self.size = float(self.init_data['size'])
 
-        self.side = self.data['side']
+        self.side = self.init_data['side']
         self.total = self.price * self.size * (-1 if self.side == 'SELL' else 1)
 
-        self.time = datetime.datetime.strptime(self.data['time'], '%Y-%m-%dT%H:%M:%SZ')
+        self.time = self.init_data['time'] if type(self.init_data['time']) == datetime.datetime else datetime.datetime.strptime(self.init_data['time'], '%Y-%m-%dT%H:%M:%S.%fZ')
 
-        self.bid = float(self.data.get('bid', 0))
-        self.ask = float(self.data.get('ask', 0))
-        self.exchange = self.data.get('exchange', 'unknown')
+        self.bid = float(self.init_data['bid'] if self.init_data['bid'] else 0)
+        self.ask = float(self.init_data['ask'] if self.init_data['ask'] else 0)
+        self.exchange = self.init_data['exchange'] if self.init_data['exchange'] else 'UKNOWN_EXCHANGE'
 
     def view_date(self) -> str:
         return self.time.strftime('%Y-%m-%d')
@@ -42,9 +42,9 @@ class MarketTrade:
             self.exchange
         ]
 
-    def to_json(self) -> dict[str, str]:
+    def to_json(self) -> dict:
         return {
-            'trade_id': str(self.trade_id),
+            'trade_id': self.trade_id,
             'trading_pair': self.trading_pair,
             'price': str(self.price),
             'size': str(self.size),
@@ -52,5 +52,18 @@ class MarketTrade:
             'side': self.side,
             'bid': str(self.bid),
             'ask': str(self.ask),
+            'exchange': self.exchange
+        }
+
+    def to_dict(self) -> dict:
+        return {
+            'trade_id': self.trade_id,
+            'trading_pair': self.trading_pair,
+            'price': self.price,
+            'size': self.size,
+            'time': self.time,
+            'side': self.side,
+            'bid': self.bid,
+            'ask': self.ask,
             'exchange': self.exchange
         }
