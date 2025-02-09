@@ -111,12 +111,12 @@ def fetch_market_trades(client: RESTClient, product_id: str, start_time: datetim
         end_unix = str(int(end_time.timestamp()))
 
         res = client.get_market_trades(product_id=product_id, limit=limit, start=start_unix, end=end_unix)
-        market_trades = res['trades'] + market_trades
+        market_trades = res.to_dict()['trades'] + market_trades
 
         if len(res['trades']) < limit:
             break
 
-        start_time = datetime.datetime.fromisoformat(max(res['trades'], key=lambda x: x['time'])['time'])
+        start_time = datetime.datetime.strptime(max(res['trades'], key=lambda x: x['time'])['time'], '%Y-%m-%dT%H:%M:%S.%fZ')
         
     return market_trades
 
