@@ -1,4 +1,5 @@
 import datetime
+import pandas as pd # type: ignore
 from coinbase.rest import RESTClient # type: ignore
 from math import ceil
 
@@ -6,10 +7,6 @@ import services.coinbase_services as cb
 from database.database import Database
 from database.db_setup import MyWoWDatabase
 from models import Candle, MarketTrade
-
-client = cb.get_client()
-db = Database('mywow.db')
-dbms = MyWoWDatabase('mywow.db')
 
 def fetch_candles(trading_pair: str, candles: dict[str, dict]):
     for start_date_string in candles:
@@ -44,13 +41,6 @@ def fetch_candles(trading_pair: str, candles: dict[str, dict]):
 
 #######################################################################################################################
 
-trading_pair = 'BTC-USD'
-start = datetime.datetime.strptime('2025-02-05T12:00:00:00', '%Y-%m-%dT%H:%M:%S:%f')
-end = datetime.datetime.strptime('2025-02-05T16:00:00:00', '%Y-%m-%dT%H:%M:%S:%f')
-
-time_delta = end - start
-time_delta_in_seconds = ceil(time_delta.seconds + time_delta.days * 24 * 3600 + time_delta.microseconds / 1e6)
-
 def fetch_and_upload_data(client: RESTClient, trading_pair: str, start_time: datetime.datetime, end_time: datetime.datetime):
     # fetch all market trades between time range and upload to db
     market_trades = cb.fetch_market_trades(client, trading_pair, start_time, end_time, cb.CANDLES_LIMIT_MAX)
@@ -63,3 +53,29 @@ def fetch_and_upload_data(client: RESTClient, trading_pair: str, start_time: dat
     for candle_data in candles:
         candle = Candle(candle_data)
         dbms.add_item(table_name='market_candles', values=candle.get_values(market_trade_candle=True))
+
+client = cb.get_client()
+db = Database('mywow.db')
+dbms = MyWoWDatabase('mywow.db')
+
+trading_pair = 'BTC-USD'
+start = datetime.datetime.strptime('2025-02-05T12:00:0.0Z', '%Y-%m-%dT%H:%M:%S.%fZ')
+end = datetime.datetime.strptime('2025-02-05T16:00:0.0Z', '%Y-%m-%dT%H:%M:%S.%fZ')
+
+time_delta = end - start
+time_delta_in_seconds = ceil(time_delta.seconds + time_delta.days * 24 * 3600 + time_delta.microseconds / 1e6)
+
+def main():
+    res = dbms.get_items(
+        table_name='market_candles', 
+        where_statement=f"WHERE trading_pair='{trading_pair}'")
+    market_candles = [Candle(trade) for trade in res]
+    df_candles = pd.DataFrame(data=[trade.to_dict() for trade in market_candles])
+    df_candles['time'] = df_candles['date']
+    df_candles['date'] = pd.Series(data=[date.date() for date in df_candles['date']])
+    df_candles = df_candles[(df_candles['date'] >= start.date()) & (df_candles['date'] <= end.date())]
+    print(df_candles.head())
+    print(df_candles.dtypes)
+
+if __name__=='__main__':
+    main()
