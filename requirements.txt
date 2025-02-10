@@ -2,3 +2,9 @@ coinbase>=1.8.1
 coinbase-advanced-py>=1.8.1
 python-dotenv>=1.0.1
 pymssql>=2.3.2
+matplotlib>=3.10
+openpyxl>=3.1
+plotly>=6.0.0
+plotly[express]
+jupyterlab>=4.2.6
+anywidget>=0.9.13
