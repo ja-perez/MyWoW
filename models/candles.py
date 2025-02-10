@@ -6,7 +6,7 @@ class Candle:
         self.data = init_data
 
         self.start: int = int(self.data['start'])
-        self.date: datetime.datetime = datetime.datetime.fromtimestamp(self.start)
+        self.date: datetime.datetime = datetime.datetime.fromtimestamp(self.start).astimezone()
 
         self.trading_pair: str = self.data['trading_pair']
         self.symbol: str = self.trading_pair.split('-')[0]

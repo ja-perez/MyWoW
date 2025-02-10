@@ -14,7 +14,7 @@ class MarketTrade:
         self.side = self.init_data['side']
         self.total = self.price * self.size * (-1 if self.side == 'SELL' else 1)
 
-        self.time = self.init_data['time'] if type(self.init_data['time']) == datetime.datetime else datetime.datetime.strptime(self.init_data['time'], '%Y-%m-%dT%H:%M:%S.%fZ')
+        self.time = self.init_data['time'] if type(self.init_data['time']) == datetime.datetime else datetime.datetime.fromisoformat(self.init_data['time']).astimezone()
 
         self.bid = float(self.init_data['bid'] if self.init_data['bid'] else 0)
         self.ask = float(self.init_data['ask'] if self.init_data['ask'] else 0)
