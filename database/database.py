@@ -102,6 +102,8 @@ class Database:
 
         if type(value) == str:
             return f"'{value}'"
+        elif type(value) == datetime.datetime:
+            return f"'{value.isoformat()}'"
         else:
             return str(value)
 
