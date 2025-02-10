@@ -6,6 +6,7 @@ from math import ceil
 import datetime
 
 CANDLES_LIMIT_MAX = 350
+LOCAL_TZ = datetime.datetime.now().astimezone().tzinfo
 
 class Granularity:
     ONE_MINUTE = 'ONE_MINUTE'
@@ -111,12 +112,15 @@ def fetch_market_trades(client: RESTClient, product_id: str, start_time: datetim
         end_unix = str(int(end_time.timestamp()))
 
         res = client.get_market_trades(product_id=product_id, limit=limit, start=start_unix, end=end_unix)
-        market_trades = res.to_dict()['trades'] + market_trades
+        curr_market_trades = res.to_dict()['trades']
+        for market_trade in curr_market_trades:
+            market_trade['time'] = datetime.datetime.fromisoformat(market_trade['time']).astimezone(LOCAL_TZ).isoformat()
+        market_trades = curr_market_trades + market_trades
 
         if len(res['trades']) < limit:
             break
 
-        start_time = datetime.datetime.strptime(max(res['trades'], key=lambda x: x['time'])['time'], '%Y-%m-%dT%H:%M:%S.%fZ')
+        end_time = datetime.datetime.fromisoformat(min(curr_market_trades, key=lambda x: x['time'])['time']).astimezone(LOCAL_TZ)
         
     return market_trades
 
