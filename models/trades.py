@@ -1,11 +1,17 @@
 import datetime
 
+class MissingDataError(Exception):
+    """Raised when a prediction object is initialized missing key data"""
+    pass
+
 class MarketTrade:
     def __init__(self, data: dict):
         self.init_data = data
 
         self.trade_id: str = self.init_data['trade_id']
-        self.trading_pair: str = self.init_data.get('product_id', self.init_data['trading_pair'])
+        self.trading_pair: str = self.init_data.get('product_id', self.init_data.get('trading_pair', None))
+        if not self.trading_pair:
+            raise MissingDataError
         self.symbol: str = self.trading_pair.split('-')[0]
 
         self.price = float(self.init_data['price'])
