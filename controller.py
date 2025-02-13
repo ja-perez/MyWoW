@@ -5,7 +5,7 @@ import utils
 from ui import Menu, QuitMenuError, CancelMenuError
 from services import PredictionService, PortfolioService
 from database.database import Database
-from database.db_setup import MyWoWDatabase, DBMSConstructionError, TableConstructionError, InvalidLocalStorageError, InvalidDataSourceError
+from database.database_setup_service import DatabaseSetupService
 import services.coinbase_services as cb
 from inputhandling import InputHandler, NextPageException, PreviousPageException
 
@@ -31,8 +31,8 @@ class Controller:
         client = cb.get_client()
 
         self.db = Database('mywow.db')
-        self.dbms = MyWoWDatabase(db_name='mywow.db')
-        self.prediction_service = PredictionService(client, self.db, self.dbms)
+        self.db_setup = DatabaseSetupService()
+        self.prediction_service = PredictionService(client, self.db)
         self.portfolio_service = PortfolioService(client, self.db)
 
         self.setup_menus()
@@ -236,7 +236,7 @@ class Controller:
                 raise
 
     def handle_overviews(self, selection):
-        candles = self.prediction_service.get_candles(selection.trading_pair, selection.start_date, selection.end_date)
+        candles = self.prediction_service.get_candles(trading_pair=selection.trading_pair, start_date=selection.start_date, end_date=selection.end_date, granularity=cb.Granularity.ONE_DAY)
 
         if not candles:
             raise MissingDataError
