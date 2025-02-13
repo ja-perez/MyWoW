@@ -8,3 +8,5 @@ plotly>=6.0.0
 plotly[express]
 jupyterlab>=4.2.6
 anywidget>=0.9.13
+seaborn>=0.13.2
+scikit-learn>=1.6.1
