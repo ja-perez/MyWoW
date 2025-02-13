@@ -94,6 +94,7 @@ def get_asset_candles(client: RESTClient, product_id: str, granularity: str, sta
         curr_candles = res.to_dict()['candles']
         for candle in curr_candles:
             candle['trading_pair'] = product_id
+            candle['granularity'] = granularity
         candles = curr_candles + candles 
 
         if Granularity.get_count_from_granularity(start, end, granularity) < limit:

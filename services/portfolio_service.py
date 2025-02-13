@@ -11,7 +11,7 @@ import utils.utils
 class PortfolioService:
     def __init__(self, client: RESTClient = None, db: Optional[Database] = None):
         self.client = client if client else cb.get_client()
-        self.db = db if db else Database()
+        self.db = db if db else Database('mywow.db')
 
         self.cache_path = utils.get_path_from_data_dir('portfolios.json')
 
