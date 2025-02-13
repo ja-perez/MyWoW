@@ -154,7 +154,7 @@ class MyWoWDatabase:
                 except InvalidValuesError:
                     continue
 
-    def get_items(self, table_name: str, start_index: int = 0, limit: int = 10, where_statement: str = "") -> list:
+    def get_items(self, table_name: str, start_index: int = 0, limit: int = -1, where_statement: str = "") -> list:
         if table_name not in self.table_definitions:
             raise InvalidDataSourceError
 

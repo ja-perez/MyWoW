@@ -6,7 +6,7 @@ class Candle:
         self.data = init_data
 
         self.start: int = int(self.data['start'])
-        self.date: datetime.datetime = datetime.datetime.fromtimestamp(self.start)
+        self.date: datetime.datetime = datetime.datetime.fromtimestamp(self.start).astimezone()
 
         self.trading_pair: str = self.data['trading_pair']
         self.symbol: str = self.trading_pair.split('-')[0]
@@ -32,10 +32,10 @@ class Candle:
             return self.date.isoformat()
         return "XXXX-XX-XXTXX:XX:XXZ"
 
-    def get_values(self) -> list[str | float]:
+    def get_values(self, market_trade_candle=False) -> list[str | float]:
         return [
             self.candle_id,
-            self.view_date(),
+            self.view_iso_date() if market_trade_candle else self.view_date(),
             self.start,
             self.trading_pair,
             self.open_price,
@@ -56,4 +56,17 @@ class Candle:
             'low': str(self.low_price),
             'close': str(self.close_price),
             'volume': str(self.volume)
+        }
+
+    def to_dict(self) -> dict:
+        return {
+            'candle_id': self.candle_id,
+            'date': self.date,
+            'start': self.start,
+            'trading_pair': self.trading_pair,
+            'open': self.open_price,
+            'high': self.high_price,
+            'low': self.low_price,
+            'close': self.close_price,
+            'volume': self.volume
         }
