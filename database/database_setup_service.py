@@ -1,6 +1,6 @@
 import os
-
-from database.database import Database, InvalidTableNameError, InvalidValuesError, DuplicateInsertError
+from database import Database, InvalidTableNameError, InvalidValuesError, DuplicateInsertError
+from typing import Optional
 
 class DBMSConstructionError(Exception):
     """Raised when a database management system object cannot be created"""
@@ -18,7 +18,7 @@ class InvalidDataSourceError(Exception):
     """Raised when data is requested from an invalid table name or file path """
     pass
 
-class MyWoWDatabase:
+class DatabaseSetupService:
     data_dir = os.path.join(os.getcwd(), 'data')
     local_db_path = os.path.join(data_dir, 'local_db')
     candles_dir = os.path.join(data_dir, 'candles')
@@ -49,7 +49,7 @@ class MyWoWDatabase:
             },
         'candles': {
             "candle_id": "TEXT PRIMARY KEY UNIQUE",
-            "date": "DATE",
+            "time": "DATETIME",
             "start": "INT",
             "trading_pair": "TEXT",
             "open": "REAL",
@@ -57,8 +57,9 @@ class MyWoWDatabase:
             "low": "REAL",
             "close": "REAL",
             "volume": "REAL",
+            "granularity": "TEXT"
             },
-        'market_trade': {
+        'market_trades': {
             "trade_id": "TEXT PRIMARY KEY UNIQUE",
             "trading_pair": "TEXT",
             "price": "REAL",
@@ -69,22 +70,11 @@ class MyWoWDatabase:
             "ask": "REAL",
             "exchange": "TEXT"
             },
-        'market_candles': {
-            "candle_id": "TEXT PRIMARY KEY UNIQUE",
-            "time": "DATETIME",
-            "start": "INT",
-            "trading_pair": "TEXT",
-            "open": "REAL",
-            "high": "REAL",
-            "low": "REAL",
-            "close": "REAL",
-            "volume": "REAL",
-            }
     }
 
-    def __init__(self, db_name: str = "mywow.db"):
-        self.db_name = db_name
-        self.db = Database(db_name)
+    def __init__(self, db: Optional[Database] = None):
+        self.db = db if db else Database('mywow.db')
+        self.db_name = self.db.db_name
         self.setup_database()
 
     def setup_database(self):
@@ -148,33 +138,14 @@ class MyWoWDatabase:
 
             for values in data:
                 try:
-                    self.add_item(table_name=table_name, values=values)
+                    self.db.insert_one(table_name=table_name, values=values)
                 except DuplicateInsertError:
                     continue
                 except InvalidValuesError:
                     continue
 
-    def get_items(self, table_name: str, start_index: int = 0, limit: int = -1, where_statement: str = "") -> list:
-        if table_name not in self.table_definitions:
-            raise InvalidDataSourceError
+def main():
+    pass
 
-        # TODO: Handle using local data as backup to missing database connection
-
-        res = self.db.get_rows(table_name=table_name, limit=limit, where_statement=where_statement)
-        return res[start_index:]
-
-    def add_item(self, table_name: str, values: list | dict):
-        if table_name not in self.table_definitions:
-            raise InvalidDataSourceError
-        
-        # TODO: Handle using local data as backup to missing database connection
-
-        res = self.db.insert_one(table_name=table_name, values=values)
-
-    def remove_item(self, table_name: str, values: dict):
-        if table_name not in self.table_definitions:
-            raise InvalidDataSourceError
-
-        # TODO: Handle using local data as backup to missing database connection
-
-        self.db.delete_where(table_name=table_name, values=values)
+if __name__=='__main__':
+    main()

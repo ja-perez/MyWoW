@@ -3,23 +3,17 @@ import os
 from typing import Optional
 from coinbase.rest import RESTClient # type: ignore
 
-import utils
 import services.coinbase_services as cb
 from services.coinbase_services import Granularity
 from database.database import Database
-from database.db_setup import MyWoWDatabase
 
 from models.prediction import Prediction
 from models.candles import Candle
 
 class PredictionService:
-    def __init__(self, client: Optional[RESTClient] = None, db: Optional[Database] = None, dbms: Optional[MyWoWDatabase] = None):
+    def __init__(self, client: Optional[RESTClient] = None, db: Optional[Database] = None):
         self.client = client if client else cb.get_client()
         self.db = db if db else Database('mywow.db')
-        self.dbms = dbms if dbms else MyWoWDatabase()
-        
-        self.prediction_data_path = utils.get_path_from_data_dir("local_predictions.csv")
-        self.prediction_results_path = utils.get_path_from_data_dir("local_results.csv")
 
         self.predictions_updated = False
         self.update_predictions()
@@ -27,17 +21,17 @@ class PredictionService:
     def get_predictions(self, start_index: int = 0, limit: int = 10) -> list[Prediction]:
         start_index = 0 if start_index < 0 else start_index # TODO: Handle start_index being greater than count of predictions (predictions object? count query? TBD)
         limit = -1 if limit < 0 else start_index + limit # offsets limit as queryed records are those UPTO start_index + desired limit count
-        result = self.dbms.get_items(table_name='predictions', start_index=start_index, limit=limit)
-        return [Prediction(data=result_data) for result_data in result]
+        result = self.db.get_rows(table_name='predictions', limit=limit)
+        return [Prediction(data=result_data) for result_data in result[start_index:]]
 
     def get_results(self, start_index: int = 0, limit: int = 10) -> list[Prediction]:
         start_index = 0 if start_index < 0 else start_index # TODO: Handle start_index being greater than count of predictions (predictions object? count query? TBD)
         limit = -1 if limit < 0 else start_index + limit # offsets limit as queryed records are those UPTO start_index + desired limit count
-        result = self.dbms.get_items(table_name='results', start_index=start_index, limit=limit)
-        return [Prediction(data=result_data) for result_data in result]
+        result = self.db.get_rows(table_name='results', limit=limit)
+        return [Prediction(data=result_data) for result_data in result[start_index:]]
 
     def update_candles(self, prediction: Prediction):
-        candles = cb.get_asset_candles(self.client, prediction.trading_pair, cb.Granularity.ONE_DAY, prediction.start_date, prediction.end_date)
+        candles = cb.get_asset_candles(self.client, prediction.trading_pair, Granularity.ONE_DAY, prediction.start_date, prediction.end_date)
         for candle_data in candles:
             candle = Candle(candle_data)
             self.db.insert_one(table_name='candles', values=candle.get_values())
@@ -50,10 +44,10 @@ class PredictionService:
         predictions = self.get_predictions(limit=-1)
         for pred in predictions:
             self.update_candles(pred)
-            candles = self.get_candles(pred.trading_pair, pred.start_date, pred.end_date)
+            candles = self.get_candles(trading_pair=pred.trading_pair, start_date=pred.start_date, end_date=pred.end_date, granularity=Granularity.ONE_DAY)
 
             if todays_date > pred.end_date.date():
-                candles.sort(key=lambda x: x.date, reverse=True)
+                candles.sort(key=lambda x: x.time, reverse=True)
                 pred.close_price = candles[0].close_price
                 self.add_result(pred)
                 self.remove_prediction(pred)
@@ -61,27 +55,28 @@ class PredictionService:
         self.predictions_updated = True
 
     def add_result(self, result: Prediction):
-        self.dbms.add_item(table_name='results', values=result.result_upload())
+        self.db.insert_one(table_name='results', values=result.result_upload())
 
     def add_prediction(self, prediction: Prediction):
-        self.dbms.add_item(table_name='predictions', values=prediction.prediction_upload())
+        self.db.insert_one(table_name='predictions', values=prediction.prediction_upload())
         self.update_predictions()
 
     def remove_prediction(self, pred_to_remove: Prediction):
-        self.dbms.remove_item(table_name='predictions', values={'symbol':pred_to_remove.symbol, 'start_date':pred_to_remove.view_start_date()})
+        self.db.delete_where(table_name='predictions', values={'symbol':pred_to_remove.symbol, 'start_date':pred_to_remove.view_start_date()})
 
-    def get_candles(self, trading_pair: str, start_date: datetime.datetime, end_date: datetime.datetime) -> list[Candle]:
+    def get_candles(self, trading_pair: str, start_date: datetime.datetime, end_date: datetime.datetime, granularity: Granularity) -> list[Candle]:
         where_statement = self.db.build_where(
             eq={
-                'trading_pair':f"'{trading_pair}'"
+                'trading_pair':f"'{trading_pair}'",
+                'granularity':f"'{granularity}'"
             },
             btwn={
-                'date':{
-                    'min':f"'{datetime.datetime.strftime(start_date, "%Y-%m-%d")}'",
-                    'max':f"'{datetime.datetime.strftime(end_date, "%Y-%m-%d")}'",
+                'time':{
+                    'min':f"'{start_date.isoformat()}'",
+                    'max':f"'{end_date.isoformat()}'",
                 }
             })
-        rows = self.dbms.get_items(table_name='candles', where_statement=where_statement)
+        rows = self.db.get_rows(table_name='candles', where_statement=where_statement)
 
         if not rows:
             return []

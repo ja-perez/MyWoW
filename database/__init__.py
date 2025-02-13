@@ -1,2 +1,2 @@
 from .database import Database, InvalidTableNameError, InvalidValuesError, InvalidInsertError, DuplicateInsertError
-from .db_setup import MyWoWDatabase, DBMSConstructionError, TableConstructionError, InvalidLocalStorageError, InvalidDataSourceError
+from .database_setup_service import DatabaseSetupService, DBMSConstructionError, TableConstructionError, InvalidLocalStorageError, InvalidDataSourceError
