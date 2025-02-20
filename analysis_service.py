@@ -4,7 +4,6 @@ from plotly.subplots import make_subplots # type: ignore
 import seaborn as sns # type: ignore
 
 import pandas as pd # type: ignore
-import numpy as np
 import datetime
 import os
 
@@ -111,8 +110,8 @@ def get_market_trades_df(db: Database, trading_pair: str, start_date: datetime.d
     return df_trades
 
 # Market Trade Analysis
-def generate_candle_chart(df_candles: pd.DataFrame, trgt: AnalysisTarget):
-    fig_candles = go.Figure(
+def generate_candle_chart(df_candles: pd.DataFrame, trgt: AnalysisTarget, save_html: bool = False, save_path: str = '') -> go.Figure:
+    fig = go.Figure(
         data=[go.Candlestick(
             x=df_candles.time,
             open=df_candles.open,
@@ -121,7 +120,7 @@ def generate_candle_chart(df_candles: pd.DataFrame, trgt: AnalysisTarget):
             close=df_candles.close
         )]
     )
-    fig_candles.update_layout(
+    fig.update_layout(
         title=f"Price Change for {trgt.trading_pair} on {trgt.get_date_summary()}",
         yaxis=dict(
             title=dict(text='Price')
@@ -131,14 +130,18 @@ def generate_candle_chart(df_candles: pd.DataFrame, trgt: AnalysisTarget):
             dtick=5*60*1000,
         ),
     )
-    fig_candles.write_html(os.path.join(ANALYSIS_DIR, 'candles.html'))
 
-def generate_trade_counts_chart(df_trades: pd.DataFrame, trgt: AnalysisTarget):
+    if save_html:
+        save_path = save_path if save_path else f"{trgt.trading_pair}_candlestick.html"
+        fig.write_html(os.path.join(ANALYSIS_DIR, save_path))
+    return fig
+
+def generate_trade_counts_chart(df_trades: pd.DataFrame, trgt: AnalysisTarget, save_html: bool = False, save_path: str = '') -> go.Figure:
     df_trade_counts = df_trades.groupby(['hour_min', 'side'], as_index=False).agg(
         counts=pd.NamedAgg(column='trade_id', aggfunc='count')
     )
-    fig_counts = px.bar(df_trade_counts, x='hour_min', y='counts', color='side')
-    fig_counts.update_layout(
+    fig = px.bar(df_trade_counts, x='hour_min', y='counts', color='side')
+    fig.update_layout(
         title=f"{trgt.trading_pair} market trade counts on {trgt.get_date_summary()}",
         yaxis=dict(
             title=dict(text='Counts'),
@@ -147,12 +150,16 @@ def generate_trade_counts_chart(df_trades: pd.DataFrame, trgt: AnalysisTarget):
             title=dict(text='Time'),
         ),
     )
-    fig_counts.write_html(os.path.join(ANALYSIS_DIR, 'trade_counts.html'))
 
-def generate_trade_totals_chart(df_trades: pd.DataFrame, trgt: AnalysisTarget):
+    if save_html:
+        save_path = save_path if save_path else f"{trgt.trading_pair}_trade_counts_bar.html"
+        fig.write_html(os.path.join(ANALYSIS_DIR, save_path))
+    return fig
+
+def generate_trade_totals_chart(df_trades: pd.DataFrame, trgt: AnalysisTarget, save_html: bool = False, save_path: str = '') -> go.Figure:
     df_totals = df_trades.groupby(['hour_min', 'side'], as_index=False)['total'].sum()
-    fig_totals = px.bar(df_totals, x='hour_min', y='total', color='side')
-    fig_totals.update_layout(
+    fig = px.bar(df_totals, x='hour_min', y='total', color='side')
+    fig.update_layout(
         title=f"{trgt.trading_pair} market trade totals on {trgt.get_date_summary()}",
         xaxis=dict(
             title=dict(text='Time')
@@ -161,17 +168,21 @@ def generate_trade_totals_chart(df_trades: pd.DataFrame, trgt: AnalysisTarget):
             title=dict(text='Total')
         ),
     )
-    fig_totals.write_html(os.path.join(ANALYSIS_DIR, 'trade_totals.html'))
+
+    if save_html:
+        save_path = save_path if save_path else f"{trgt.trading_pair}_trade_totals_bar.html"
+        fig.write_html(os.path.join(ANALYSIS_DIR, save_path))
+    return fig
 
 # Weekday Price Analysis
-def generate_price_direction_counts_chart(df_candles: pd.DataFrame, trgt: AnalysisTarget):
+def generate_price_direction_counts_chart(df_candles: pd.DataFrame, trgt: AnalysisTarget, save_html: bool = False, save_path: str = '') -> go.Figure:
     df_direction_counts = df_candles.groupby(['month_year', 'weekday', 'price_direction'], as_index=False).agg(
         counts=pd.NamedAgg(column='candle_id', aggfunc='count')
     )
     df_direction_counts.sort_values(by='month_year')
-    fig_counts = px.bar(df_direction_counts, x='month_year', y='counts', color='price_direction',
+    fig = px.bar(df_direction_counts, x='month_year', y='counts', color='price_direction',
                         barmode='group', facet_row='weekday', category_orders={'weekday': WEEKDAY_ORDER})
-    fig_counts.update_layout(
+    fig.update_layout(
         title=f"{trgt.trading_pair} price direction counts {trgt.get_date_summary()}",
         yaxis=dict(
             title=dict(text='Counts')
@@ -180,14 +191,18 @@ def generate_price_direction_counts_chart(df_candles: pd.DataFrame, trgt: Analys
             title=dict(text='Month-Year')
         ),
     )
-    fig_counts.for_each_annotation(lambda x: x.update(text=x.text.split('=')[-1]))
-    fig_counts.write_html(os.path.join(ANALYSIS_DIR, 'wkday_price_direction_counts.html'))
+    fig.for_each_annotation(lambda x: x.update(text=x.text.split('=')[-1]))
 
-def generate_percent_diff_totals_chart(df_candles: pd.DataFrame, trgt: AnalysisTarget):
+    if save_html:
+        save_path = save_path if save_path else f"{trgt.trading_pair}_weekday_price_direction_counts_bar.html"
+        fig.write_html(os.path.join(ANALYSIS_DIR, save_path))
+    return fig
+
+def generate_percent_diff_totals_chart(df_candles: pd.DataFrame, trgt: AnalysisTarget, save_html: bool = False, save_path: str = '') -> go.Figure:
     df_diff_totals = df_candles.groupby(['month_year', 'weekday', 'price_direction'], as_index=False)['percent_change'].sum()
-    fig_diff_totals = px.bar(df_diff_totals, x='month_year', y='percent_change', color='price_direction',
+    fig = px.bar(df_diff_totals, x='month_year', y='percent_change', color='price_direction',
                              barmode='group', facet_row='weekday', category_orders={'weekday': WEEKDAY_ORDER})
-    fig_diff_totals.update_layout(
+    fig.update_layout(
         title=f"{trgt.trading_pair} total percent change {trgt.get_date_summary()}",
         yaxis=dict(
             title=dict(text='% Diff.')
@@ -196,18 +211,22 @@ def generate_percent_diff_totals_chart(df_candles: pd.DataFrame, trgt: AnalysisT
             title=dict(text='Month-Year')
         ),
     )
-    fig_diff_totals.for_each_annotation(lambda x: x.update(text=x.text.split('=')[-1]))
-    fig_diff_totals.write_html(os.path.join(ANALYSIS_DIR, 'wkday_percent_change_totals.html'))
+    fig.for_each_annotation(lambda x: x.update(text=x.text.split('=')[-1]))
 
-def generate_price_change_avg_min_max_chart(df_candles: pd.DataFrame, trgt: AnalysisTarget):
+    if save_html:
+        save_path = save_path if save_path else f"{trgt.trading_pair}_weekday_percent_change_totals_bar.html"
+        fig.write_html(os.path.join(ANALYSIS_DIR, save_path))
+    return fig
+
+def generate_price_change_avg_min_max_chart(df_candles: pd.DataFrame, trgt: AnalysisTarget, save_html: bool = False, save_path: str = '') -> go.Figure:
     df_change = df_candles[['month_year', 'weekday', 'price_change']].groupby(['month_year', 'weekday'], as_index=False).agg(
         average=pd.NamedAgg(column='price_change', aggfunc='mean'),
         min=pd.NamedAgg(column='price_change', aggfunc='min'),
         max=pd.NamedAgg(column='price_change', aggfunc='max'),
     )
-    fig_change = px.bar(df_change, x='month_year', y=['average', 'min', 'max'],
+    fig = px.bar(df_change, x='month_year', y=['average', 'min', 'max'],
                         barmode='group', facet_row='weekday', category_orders={'weekday': WEEKDAY_ORDER})
-    fig_change.update_layout(
+    fig.update_layout(
         title=f"{trgt.trading_pair} price change {trgt.get_date_summary()}",
         yaxis=dict(
             title=dict(text='Amount')
@@ -216,8 +235,12 @@ def generate_price_change_avg_min_max_chart(df_candles: pd.DataFrame, trgt: Anal
             title=dict(text='Month-Year')
         ),
     )
-    fig_change.for_each_annotation(lambda x: x.update(text=x.text.split('=')[-1]))
-    fig_change.write_html(os.path.join(ANALYSIS_DIR, 'wkday_avg_min_max.html'))
+    fig.for_each_annotation(lambda x: x.update(text=x.text.split('=')[-1]))
+
+    if save_html:
+        save_path = save_path if save_path else f"{trgt.trading_pair}_weekday_avg_min_max_bar.html"
+        fig.write_html(os.path.join(ANALYSIS_DIR, save_path))
+    return fig
 
 def main():
     db = Database('mywow.db')
