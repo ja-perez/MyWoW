@@ -10,3 +10,7 @@ jupyterlab>=4.2.6
 anywidget>=0.9.13
 seaborn>=0.13.2
 scikit-learn>=1.6.1
+# Plotly dashboard
+dash>=2.18.2
+setuptools>=75.6.0
+packaging>=24.2
