@@ -3,6 +3,7 @@ import plotly.graph_objects as go # type: ignore
 from plotly.subplots import make_subplots # type: ignore
 import seaborn as sns # type: ignore
 
+from typing import Optional
 import pandas as pd # type: ignore
 import datetime
 import os
@@ -20,6 +21,8 @@ ANALYSIS_HISTORY_PATH = os.path.join(ANALYSIS_DIR, ANALYSIS_HISTORY_FILENAME)
 
 WEEKDAY_ORDER = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
+PLACEHOLDER_DATE = datetime.datetime.now()
+
 class AnalysisTarget:
     def __init__(self, trading_pair: str, start_date: datetime.datetime, end_date:datetime.datetime):
         self.trading_pair = trading_pair
@@ -33,13 +36,47 @@ class AnalysisTarget:
             return f"{self.start_date.strftime('%m/%d/%y')} between {self.start_date.strftime('%H:%M')}-{self.end_date.strftime('%H:%M')}"
         else:
             return f"between {self.start_date.strftime('%m/%y')}-{self.end_date.strftime('%m/%y')}"
-    
 
-def analysis_exists(trading_pair: str, start_date: datetime.datetime, end_date: datetime.datetime):
+    def get_core_values(self, as_dict: bool=False) -> dict | list:
+        if as_dict:
+            return {
+                'trading_pair': self.trading_pair,
+                'start_date': self.start_date,
+                'end_date': self.end_date,
+            }
+        return [self.trading_pair, self.start_date, self.end_date]
+
+def get_analysis_history() -> dict[str, AnalysisTarget]:
+    history = {}
+    with open(ANALYSIS_HISTORY_PATH, 'r') as f:
+        header = f.readline()
+        for row in f.readlines():
+            data = row.split(',')
+            trading_pair = data[0]
+            start_date = datetime.datetime.fromisoformat(data[1])
+            end_date = datetime.datetime.fromisoformat(data[2])
+            # created_date = datetime.datetime.fromisoformat(data[3])
+            # last_updated_date = datetime.datetime.fromisoformat(data[4])
+
+            if end_date.date() == start_date.date():
+                label_date = f"{start_date.strftime('%m/%d/%y')} between {start_date.strftime('%H:%M')}-{end_date.strftime('%H:%M')}"
+            else:
+                label_date = f"{start_date.strftime('%m/%y')}-{end_date.strftime('%m/%y')}"
+
+            label = f"{trading_pair} | {label_date}"
+            history[label] = AnalysisTarget(trading_pair=trading_pair, start_date=start_date, end_date=end_date)
+
+    return history
+
+def analysis_exists(trading_pair: str='', start_date: datetime.datetime=PLACEHOLDER_DATE, end_date: datetime.datetime=PLACEHOLDER_DATE,
+                    analysis_target: Optional[AnalysisTarget]=None):
     """ 
-    Checks for existing data stored in local database and returns updated parameters
-    for fetching any missing data.
+    Checks if parameters exist in local analysis history log file
     """
+    trading_pair = analysis_target.trading_pair if analysis_target else trading_pair
+    start_date = analysis_target.start_date if analysis_target else start_date
+    end_date = analysis_target.end_date if analysis_target else end_date
+
     with open(ANALYSIS_HISTORY_PATH, 'r') as f:
         header = f.readline()
         for row in f.readlines():
@@ -52,7 +89,14 @@ def analysis_exists(trading_pair: str, start_date: datetime.datetime, end_date: 
                 return True
     return False
 
-def fetch_and_upload_data(db: Database, client: RESTClient, trading_pair: str, start_date: datetime.datetime, end_date: datetime.datetime):
+def fetch_and_upload_data(
+        db: Database, client: RESTClient, 
+        trading_pair: str='', start_date: datetime.datetime=PLACEHOLDER_DATE, end_date: datetime.datetime=PLACEHOLDER_DATE,
+        analysis_target: Optional[AnalysisTarget]=None):
+    trading_pair = analysis_target.trading_pair if analysis_target else trading_pair
+    start_date = analysis_target.start_date if analysis_target else start_date
+    end_date = analysis_target.end_date if analysis_target else end_date
+
     if analysis_exists(trading_pair=trading_pair, start_date=start_date, end_date=end_date):
         return
 
@@ -66,7 +110,14 @@ def fetch_and_upload_data(db: Database, client: RESTClient, trading_pair: str, s
         candle = Candle(candle_data)
         db.insert_one(table_name='candles', values=candle.get_values())
 
-def get_candles_df(db: Database, trading_pair: str, start_date: datetime.datetime, end_date: datetime.datetime, granularity: str):
+def get_candles_df(
+        db: Database, granularity: str,
+        trading_pair: str='', start_date: datetime.datetime=PLACEHOLDER_DATE, end_date: datetime.datetime=PLACEHOLDER_DATE,
+        analysis_target: Optional[AnalysisTarget]=None):
+    trading_pair = analysis_target.trading_pair if analysis_target else trading_pair
+    start_date = analysis_target.start_date if analysis_target else start_date
+    end_date = analysis_target.end_date if analysis_target else end_date
+
     res = db.get_rows(
         table_name='candles',
         where_statement=f"WHERE trading_pair='{trading_pair}' AND time between '{start_date.isoformat()}' AND '{end_date.isoformat()}' AND granularity='{granularity}'"
@@ -88,7 +139,14 @@ def get_candles_df(db: Database, trading_pair: str, start_date: datetime.datetim
 
     return df_candles
 
-def get_market_trades_df(db: Database, trading_pair: str, start_date: datetime.datetime, end_date: datetime.datetime):
+def get_market_trades_df(
+        db: Database, 
+        trading_pair: str='', start_date: datetime.datetime=PLACEHOLDER_DATE, end_date: datetime.datetime=PLACEHOLDER_DATE,
+        analysis_target: Optional[AnalysisTarget]=None):
+    trading_pair = analysis_target.trading_pair if analysis_target else trading_pair
+    start_date = analysis_target.start_date if analysis_target else start_date
+    end_date = analysis_target.end_date if analysis_target else end_date
+
     res = db.get_rows(
         table_name='market_trades',
         where_statement=f"WHERE trading_pair='{trading_pair}' AND time between '{start_date.isoformat()}' AND '{end_date.isoformat()}'"
@@ -242,9 +300,46 @@ def generate_price_change_avg_min_max_chart(df_candles: pd.DataFrame, trgt: Anal
         fig.write_html(os.path.join(ANALYSIS_DIR, save_path))
     return fig
 
+def get_trade_analysis_charts(
+        db: Database, analysis_target: Optional[AnalysisTarget]=None, 
+        trading_pair: str='', start_date: datetime.datetime=PLACEHOLDER_DATE, end_date: datetime.datetime=PLACEHOLDER_DATE):
+    if not analysis_target:
+        analysis_target = AnalysisTarget(trading_pair=trading_pair, start_date=start_date, end_date=end_date)
+    else:
+        trading_pair, start_date, end_date = analysis_target.get_core_values()
+
+    df_candles = get_candles_df(db, analysis_target=analysis_target, granularity=cb.Granularity.ONE_MINUTE)
+    df_trades = get_market_trades_df(db, trading_pair, start_date, end_date)
+
+    charts = {
+        'candlestick': generate_candle_chart(df_candles, analysis_target),
+        'trade_counts': generate_trade_counts_chart(df_trades, analysis_target),
+        'trade_totals': generate_trade_totals_chart(df_trades, analysis_target),
+    }
+    return charts 
+
+def get_weekday_analysis_charts(
+        db: Database, analysis_target: Optional[AnalysisTarget]=None, 
+        trading_pair: str='', start_date: datetime.datetime=PLACEHOLDER_DATE, end_date: datetime.datetime=PLACEHOLDER_DATE):
+    if not analysis_target:
+        analysis_target = AnalysisTarget(trading_pair=trading_pair, start_date=start_date, end_date=end_date)
+    else:
+        trading_pair, start_date, end_date = analysis_target.get_core_values()
+
+    df_candles = get_candles_df(db, trading_pair=trading_pair, start_date=start_date, end_date=end_date, granularity=cb.Granularity.ONE_DAY)
+
+    charts = {
+        'price_direction': generate_price_direction_counts_chart(df_candles, analysis_target),
+        'percent_difference': generate_percent_diff_totals_chart(df_candles, analysis_target),
+        'price_change': generate_price_change_avg_min_max_chart(df_candles, analysis_target),
+    }
+    return charts 
+
 def main():
     db = Database('mywow.db')
     DatabaseSetupService(db)
+
+    client = cb.get_client()
 
     # market trades analysis
     trading_pair = 'SWELL-USD'
@@ -252,11 +347,14 @@ def main():
     end = datetime.datetime(year=2025, month=2, day=10, hour=3, minute=00, second=0, tzinfo=cb.LOCAL_TZ)
     target = AnalysisTarget(trading_pair=trading_pair, start_date=start, end_date=end)
 
+    if not analysis_exists(analysis_target=target):
+        fetch_and_upload_data(db, client, analysis_target=target)
+
     df_candles = get_candles_df(db, trading_pair=trading_pair, start_date=start, end_date=end, granularity=cb.Granularity.ONE_MINUTE)
     df_trades = get_market_trades_df(db, trading_pair, start, end)
-    generate_candle_chart(df_candles, target)
-    generate_trade_counts_chart(df_trades, target)
-    generate_trade_totals_chart(df_trades, target)
+    generate_candle_chart(df_candles, target, save_html=True)
+    generate_trade_counts_chart(df_trades, target, save_html=True)
+    generate_trade_totals_chart(df_trades, target, save_html=True)
 
     # weekday analysis
     trading_pair = 'ARB-USD'
@@ -265,9 +363,9 @@ def main():
     target = AnalysisTarget(trading_pair=trading_pair, start_date=start, end_date=end)
 
     df_candles = get_candles_df(db, trading_pair=trading_pair, start_date=start, end_date=end, granularity=cb.Granularity.ONE_DAY)
-    generate_price_direction_counts_chart(df_candles, target)
-    generate_percent_diff_totals_chart(df_candles, target)
-    generate_price_change_avg_min_max_chart(df_candles, target)
+    generate_price_direction_counts_chart(df_candles, target, save_html=True)
+    generate_percent_diff_totals_chart(df_candles, target, save_html=True)
+    generate_price_change_avg_min_max_chart(df_candles, target, save_html=True)
 
 
 if __name__=='__main__':
