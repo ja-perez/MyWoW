@@ -3,7 +3,7 @@ coinbase>=1.8.1
 coinbase-advanced-py>=1.8.1
 python-dotenv>=1.0.1
 pymssql>=2.3.2
-# Data analysis llibraries
+# Data analysis libraries
 pandas>=2.2.3
 numpy>=2.1.3
 scikit-learn>=1.6.1
