@@ -245,3 +245,9 @@ logs/*
 # Data and DB Folders
 data/*
 database/*.db
+
+# Debugging files
+*test.py
+*test.ipynb
+*temp.py
+*temp.ipynb

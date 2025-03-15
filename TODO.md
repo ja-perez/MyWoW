@@ -8,7 +8,6 @@
 - Optimize market trade analysis process for large data sets
 - Optimize dynamic asset analysis in dashboard
 
-
 ### Priority Features:
 - Portfolio Dashboard
 - Analysis Dashboard
