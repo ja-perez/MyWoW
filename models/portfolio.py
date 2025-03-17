@@ -6,7 +6,7 @@ currency_to_symbol = {
 class Position:
     def __init__(self, data: dict):
         self.symbol = data['asset']
-        self.assest_uuid = data['asset_uuid']
+        self.asset_uuid = data['asset_uuid']
 
         self.entry_price = data['average_entry_price']['value']
         self.entry_currency = data['average_entry_price']['currency']
