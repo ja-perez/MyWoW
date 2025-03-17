@@ -376,20 +376,20 @@ class Menu:
         balance_header = f"BALANCES\n"
         self.stdscr.addstr(balance_header, curses.A_BOLD)
         # Balance section data
-        balance = portfolio.get_balance()
+        balance = portfolio.balance
         for balance_type in balance:
             output = f"{'':>4}{balance_type.upper():<7}: $ {balance[balance_type]:>7.2f}\n"
             self.stdscr.addstr(output)
 
         self.stdscr.addstr('\n')
 
-        # Active positions section sub-title and header
-        positions_title = "Active Positions\n"
+        # Held positions section sub-title and header
+        positions_title = "Held Positions\n"
         self.stdscr.addstr(positions_title, curses.A_BOLD)
         positions_header = f"{'Symbol':<15} {'Current Price':>15} {'Owned Quantity':>15} {'Owned Value':>15}\n"
         self.display_header(positions_header)
         # Active positions section data
-        for position in portfolio.active_positions[:5]:
+        for position in portfolio.held_positions[:5]:
             position_out = f"{position.symbol:<15} {position.curr_price:>15.2f} {position.quantity:>15.2f} {position.value:>15.2f}\n"
             self.stdscr.addstr(position_out)
 
