@@ -7,18 +7,30 @@ class Position:
     def __init__(self, data: dict):
         self.symbol = data['asset']
         self.asset_uuid = data['asset_uuid']
-
-        self.entry_price = data['average_entry_price']['value']
-        self.entry_currency = data['average_entry_price']['currency']
-
+        self.currency = data['cost_basis']['currency']
+        self.entry_price = float(data['average_entry_price']['value'])
         self.quantity = data['total_balance_crypto']
-        self.value = data['total_balance_fiat']
-
-        self.unrealized_pnl = data['unrealized_pnl']
-        self.curr_price = self.value / self.quantity
+        self.value = float(data['total_balance_fiat'])
+        self.unrealized_return = float(data['unrealized_pnl'])
+        self.curr_price = float(self.value / self.quantity)
 
     def display_entry_price(self):
-        return f'{currency_to_symbol[self.entry_currency]} {self.entry_price}'
+        if self.entry_price < 1 or self.entry_price > 1000:
+            return f'{currency_to_symbol[self.currency]}{self.entry_price: .2e}'
+        else:
+            return f'{currency_to_symbol[self.currency]}{self.entry_price: .2f}'
+
+    def display_value(self):
+        return f'{currency_to_symbol[self.currency]}{self.value: .2f}'
+
+    def display_unrealized_return(self):
+        return f'{currency_to_symbol[self.currency]}{self.unrealized_return: .2f}'
+
+    def display_curr_price(self):
+        if self.curr_price < 1 or self.curr_price > 1000:
+            return f'{currency_to_symbol[self.currency]}{self.curr_price: .2e}'
+        else:
+            return f'{currency_to_symbol[self.currency]}{self.curr_price: .2f}'
 
 class Portfolio:
     def __init__(self, data: dict):
@@ -57,4 +69,4 @@ class Portfolio:
     def display_balance(self, balance_type: str) -> str:
         value = self.balances[balance_type]['value']
         currency = self.balances[balance_type]['currency']
-        return f"{currency_to_symbol[currency]} {value:.2f}"
+        return f"{currency_to_symbol[currency]}{value: .2f}"
