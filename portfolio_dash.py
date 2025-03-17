@@ -52,11 +52,21 @@ balance_summary = html.Div(
     ]
 )
 """ (B) Balance Summary """
-######################################
+###############################################################################################################
 """ (F) Positions Summary """
 positions_container_style = {
     'backgroundColor':'lightgray',
+    'padding':'5px', 'margin':'5px',
+    'border':'2.5px solid black', 'borderRadius':'10px',
+    'display':'grid', 'grid-template':'1fr / 1fr 1fr 1fr 1fr 1fr', 'textAlign':'center', 'alignItems':'center', 'justifyItems':'center',
 }
+def price_output_style(price: float) -> dict:
+    return {
+        'padding':'5px', 'paddingInline':'10px',
+        'borderRadius':'15px', 'width':'80px',
+        'background':'red' if price < 0 else 'forestgreen',
+        'color':'#fff',
+    }
 positions_header = html.Div(
     id='positions_header',
     style=positions_container_style,
@@ -70,17 +80,16 @@ positions_header = html.Div(
 )
 positions = html.Div(
     id='account_positions',
-    style={},
     children=[
         html.Div(
             id=position.asset_uuid,
             style=positions_container_style,
             children=[
                 html.H3(position.symbol),
-                html.Div(position.value),
+                html.Div(position.display_value()),
                 html.Div(position.quantity),
-                html.Div(position.unrealized_pnl),
-                html.Div(position.curr_price),
+                html.Div(position.display_unrealized_return(), style=price_output_style(position.unrealized_return)),
+                html.Div(position.display_curr_price()),
             ],
         )
         for position in portfolio.held_positions
@@ -96,6 +105,7 @@ positions_summary = html.Div(
     ]
 )
 """ (B) Positions Summary """
+###############################################################################################################
 
 title = html.H1('Portfolio Dashboard', style={'textAlign':'left', 'fontSize':46, 'marginBottom':'10px'})
 app.layout = html.Div(
@@ -104,6 +114,7 @@ app.layout = html.Div(
     children=[
         title,
         balance_summary,
+        positions_summary,
     ]
 )
 
