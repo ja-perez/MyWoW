@@ -1,5 +1,6 @@
 from coinbase.rest import RESTClient # type: ignore
 from coinbase.wallet.client import Client # type: ignore
+from requests.exceptions import HTTPError # type: ignore
 from typing import Optional
 from dotenv import dotenv_values
 from math import ceil
@@ -128,6 +129,13 @@ def fetch_market_trades(client: RESTClient, product_id: str, start_time: datetim
 def fetch_market_trade_candles(client: RESTClient, product_id: str, start_time: datetime.datetime, end_time: datetime.datetime, limit: int = CANDLES_LIMIT_MAX):
     candles = get_asset_candles(client, product_id=product_id, granularity=Granularity.ONE_MINUTE, start=start_time, end=end_time, limit=limit)
     return candles
+
+def trading_pair_exists(client: RESTClient, trading_pair: str):
+    try:
+        product_details = client.get_product(trading_pair.upper())
+        return product_details.to_dict()
+    except HTTPError:
+        return {}
 
 def main():
     client = get_client()
