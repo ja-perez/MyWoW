@@ -1,5 +1,5 @@
 import dash # type: ignore
-from dash import dcc, html, ctx
+from dash import dcc, html, ctx, dash_table
 from dash.dependencies import Input, Output, State # type: ignore
 import plotly.graph_objs as go # type: ignore
 import plotly.express as px # type: ignore
@@ -17,6 +17,14 @@ import utils.utils as utils
 
 MIN_DATE_DEFAULT: datetime = datetime(2020, 1, 1)
 MAX_DATE_DEFAULT: datetime = datetime(datetime.today().year + 1, 6, 1)
+
+db = Database('mywow.db')
+DatabaseSetupService()
+predictions_table_schema = db.get_table_schema('predictions')
+df_predictions = pd.DataFrame(columns=[col_name for col_name in predictions_table_schema.keys()])
+for col in df_predictions.columns:
+    df_predictions[col].astype(db.typename_to_obj[predictions_table_schema[col]])
+db.on_exit()
 
 create_prediction_view = html.Div(
     id='create-prediction-view',
@@ -105,6 +113,7 @@ read_prediction_view = html.Div(
     id='read-prediction-view',
     hidden=True,
     children=[
+        dash_table.DataTable(df_predictions)
     ]
 )
 

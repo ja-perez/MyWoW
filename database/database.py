@@ -19,6 +19,15 @@ class DuplicateInsertError(Exception):
     pass
 
 class Database:
+    typename_to_obj = {
+        'TEXT': str,
+        'REAL': float,
+        'FLOAT': float,
+        'INT': int,
+        'NUMBER': int,
+        'DATETIME': datetime.datetime,
+        'DATE': str,
+    }
     def __init__(self, db_name: str):
         self.db_name = db_name
         db_path = path.join(data_dir, db_name)
